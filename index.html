@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>글 → 마인드맵</title>
+<style>
+:root{--bg:#eef2f0;--cd:#fbfdfc;--tx:#1d2a26;--mu:#5f726b;--ac:#1f6f5c;--bd:#cbd8d3}
+@media(prefers-color-scheme:dark){:root{--bg:#121816;--cd:#1a2320;--tx:#e6f0ec;--mu:#8fa69d;--ac:#6fcdb2;--bd:#2c3b36}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.6 "Noto Sans KR",system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+main{max-width:1200px;margin:0 auto;padding:18px 14px 36px}h1{font-size:22px;margin:0 0 12px}
+.cd{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:12px}
+textarea,select,input{border:1px solid var(--bd);border-radius:6px;padding:6px 9px;background:transparent;color:inherit;font:inherit}
+textarea{width:100%;min-height:150px;resize:vertical}
+.r{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+button{border:1px solid var(--ac);background:var(--ac);color:var(--cd);border-radius:6px;padding:6px 12px;font:inherit;font-weight:600;cursor:pointer}
+button.g{background:transparent;color:var(--ac)}button:disabled{opacity:.5}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+#w{position:relative}#cv{width:100%;height:auto;display:block;border-radius:6px;touch-action:none}
+#cv:fullscreen{width:100vw;height:100vh;object-fit:contain;border-radius:0}
+#ed{position:absolute;display:none;z-index:2;text-align:center;padding:0 6px;color:#000;background:#fff}
+#sec{width:56px}#st{color:var(--mu);font-size:12px}.h{color:var(--mu);font-size:12px;margin:8px 0 0}
+</style></head><body><main>
+<h1>글을 마인드맵으로</h1>
+<div class="cd"><textarea id="inp" placeholder="글 또는 들여쓰기·번호가 있는 개요를 붙여 넣으세요"></textarea>
+<div class="r"><select id="mode" aria-label="정리 방식"><option value="rule">규칙 기반</option><option value="ai">브라우저 AI 모델 (첫 실행 시 모델 다운로드)</option></select>
+<button id="bGo">마인드맵 만들기</button><button id="bSm" class="g">예시 글</button><span id="st" role="status"></span></div></div>
+<div class="cd"><div class="r" style="margin:0 0 8px">
+<select id="thm" aria-label="디자인"></select>
+<select id="lyt" aria-label="배치"><option value="bal">좌우 균형</option><option value="r">오른쪽으로</option></select>
+<label><input type="checkbox" id="flt"> 플로팅(자유 배치)</label>
+<button id="bAc" class="g">자식 +</button><button id="bAs" class="g">형제 +</button><button id="bDl" class="g">삭제</button><button id="bCl" class="g">접기/펴기</button><button id="bCo" class="g">색 바꾸기</button><button id="bUn" class="g">↶</button><button id="bRe" class="g">↷</button><button id="bFt" class="g">맞춤</button><button id="bPg" class="g">PNG</button>
+</div><div class="r" style="margin:0 0 8px"><button id="bPr">발표</button><button id="bFs" class="g">전체화면</button>
+<button id="bRc">MP4 자동 녹화</button><label>단계당 <input id="sec" type="number" min="1" max="30" value="3"> 초</label></div>
+<div id="w"><canvas id="cv" tabindex="0"></canvas><input id="ed"></div>
+<p class="h"><b>편집</b> 클릭 선택 · 더블클릭/F2 이름 수정 · Tab 자식 · Enter 형제 · Delete 삭제 · C 접기 · K 색 · 방향키 이동 · 배경 드래그 이동 · 휠 확대 · Ctrl+Z/Y · 노드를 다른 노드 위에 놓으면 부모 변경(플로팅 끄기), 플로팅 켜면 자유 이동<br>
+<b>발표</b> Space 시작/다음 · N/→ 다음 · P/← 이전 · +/− 확대·축소 · O 전체 보기 · R 녹화 시작/종료 · Esc 종료</p></div></main>
+<script>
+//PARSE-START
+const RS=/^(?:#+\s*)?(?:제?\s*[0-9Ⅰ-Ⅹ]+\s*[장절부.)]\s*)?(서\s?론|본\s?론|결\s?론|들어가며|들어가는\s?말|머리말|문제\s?제기|맺으며|맺는\s?말|맺음말|마치며|결어|요약)\s*(?:[:：\-–.)\]]\s*|$)(.*)$/;
+const MH=/^(#{1,6})\s+(.+)$/,NH=/^(?:제\s?\d+\s?[장절부]|[Ⅰ-Ⅹ]+[.)])\s*(.+)$/;
+const BU=/^(\s*)([-*•·▪▶▷○●■□◆◇▸>]|\d+[.)]|\(\d+\)|[①-⑳]|[가-하][.)]|[A-Za-z][.)])\s+(.+)$/;
+const KEYS='첫째|둘째|셋째|넷째|다섯째|여섯째|(?:첫|두|세|네|다섯|여섯)\\s?번째|하나는|둘은|셋은|또\\s?하나는|먼저|우선|다음으로|이어서|그다음|마지막으로|끝으로|아울러|또한|무엇보다|first(?:ly)?|second(?:ly)?|third(?:ly)?|finally|lastly';
+const EN=new RegExp('^('+KEYS+')[로는은이가]?(?=[\\s,:：]|$)[\\s,:：]*','i');
+const CN=/^(그러나|하지만|그런데|그리고|따라서|그래서|그러므로|즉|결국|특히|게다가|예를 들어|예컨대|요컨대|결론적으로|요약하면|이처럼|이렇듯|물론|다만)[\s,]+/;
+const sn=t=>t.replace(/\s+/g,' ').trim().split(/(?<=[가-힣a-zA-Z)\]"'”’][.!?。])\s+/).filter(Boolean);
+function lab(s){s=s.trim().replace(EN,'').replace(CN,'').replace(/^["“'‘(\[]+|["”'’)\]]+$/g,'').replace(/[.!?。…]+$/,'').trim();
+ const m=s.match(/^(.{8,26}?)(?:\s*[,，;；]|\s(?:그리고|하지만|그러나|그래서)\s|(?:는데|지만|으며|면서|이며|이고|해서|하여|하며|인데)\s)/);if(m)s=m[1];
+ s=s.replace(/\s?(입니다|것이다|이다)$/,'');
+ if(s.length>24){const k=s.lastIndexOf(' ',22);s=s.slice(0,k>8?k:23)+'…'}return s||'…'}
+function mk(s){s=s.replace(EN,'');const m=s.match(/^([^:：]{2,16})[:：]\s*(.{6,})$/);
+ if(m)return{t:m[1].trim(),n:s,c:[{t:lab(m[2]),n:m[2],c:[]}]};return{t:lab(s),n:s,c:[]}}
+function parse(raw){
+ const L=raw.replace(/\r/g,'').split('\n'),root={t:'글 요약',c:[]};let i=0;
+ while(i<L.length&&!L[i].trim())i++;const f=(L[i]||'').trim();
+ if(f&&f.length<=45&&!/[.!?。다요]$/.test(f)&&!RS.test(f)&&!BU.test(L[i])&&!/^#{2,}\s/.test(f)&&!NH.test(f)){root.t=f.replace(/^#\s+/,'');i++}
+ const B=[];let para=null;const fl=()=>{if(para){B.push({k:'p',x:para.join(' ')});para=null}};
+ for(;i<L.length;i++){const l=L[i],t=l.trim();let m;if(!t){fl();continue}
+  if(m=t.match(RS)){fl();B.push({k:'h',lv:1,x:m[1].replace(/\s/g,'')});if(m[2])para=[m[2]];continue}
+  if(m=t.match(MH)){fl();B.push({k:'h',lv:m[1].length,x:m[2]});continue}
+  if(m=t.match(NH)){fl();B.push({k:'h',lv:1,x:m[1]});continue}
+  if(m=l.match(BU)){fl();B.push({k:'l',key:m[1].replace(/\t/g,'  ').length*2+(/^(\d|\(|[①-⑳]|[가-하A-Za-z][.)])/.test(m[2])?0:1),x:m[3]});continue}
+  (para=para||[]).push(t)}
+ fl();
+ const hasH=B.some(b=>b.k==='h'),np=B.filter(b=>b.k==='p').length,hs=[{lv:0,n:root}];let pi=0,cur=root,ls=[];
+ const head=(lv,x)=>{while(hs[hs.length-1].lv>=lv)hs.pop();const n={t:lab(x),n:x,c:[]};hs[hs.length-1].n.c.push(n);hs.push({lv,n});cur=n;ls=[]};
+ const para2=(x,cur)=>{const ss=sn(x),hits=ss.filter(s=>EN.test(s)).length;
+  if(hits>=2){let it=null;for(const s of ss){if(EN.test(s)){it=mk(s);cur.c.push(it)}else if(it)it.c.push(mk(s));else cur.c.push(mk(s))}}
+  else{const n=mk(ss[0]||x);n.n=x;cur.c.push(n);ss.slice(1,5).forEach(s=>n.c.push(mk(s)))}};
+ for(const b of B){
+  if(b.k==='h'){head(b.lv,b.x);continue}
+  if(b.k==='l'){while(ls.length&&ls[ls.length-1].key>=b.key)ls.pop();const n=mk(b.x);(ls.length?ls[ls.length-1].n:cur).c.push(n);ls.push({key:b.key,n});continue}
+  if(!hasH&&np>=3){const nm=pi===0?'서론':pi===np-1?'결론':pi===1?'본론':null;if(nm)head(1,nm)}
+  const tt=ls.length&&ls[0].key%2===0&&!(!hasH&&np>=3)?ls[0].n:cur;pi++;ls=[];para2(b.x,tt)}
+ return root}
+//PARSE-END
+const $=id=>document.getElementById(id),C=$('cv'),X=C.getContext('2d'),W=1280,H=720;C.width=W;C.height=H;
+const SAMPLE=`스마트폰 사용을 줄여야 하는 이유
+서론
+스마트폰은 이제 생활의 필수품이 되었다. 하지만 하루 대부분을 화면 앞에서 보내는 습관은 여러 문제를 낳고 있다.
+본론
+첫째, 집중력이 떨어진다. 알림이 올 때마다 하던 일이 끊기고 다시 몰입하는 데 시간이 걸린다.
+둘째, 수면의 질이 나빠진다. 잠들기 전 화면의 빛이 수면 리듬을 흐트러뜨린다.
+셋째, 대면 관계가 약해진다. 같은 자리에 있어도 각자 화면만 보게 된다.
+결론
+따라서 사용 시간을 정해 두고 알림을 줄이는 작은 실천부터 시작해야 한다.`;
+const F='"Noto Sans KR","Apple SD Gothic Neo",sans-serif';
+const T={
+'파스텔':{bg:'#f4f7f5',tx:'#1d2a26',rf:'#1f3d36',rt:'#fff',nt:'#fff',pal:['#d9694f','#c9962a','#3f8f66','#3b7fc0','#8a63bb','#c75592'],ns:'fill',ls:'curve',f:F},
+'다크 네온':{bg:'#0d1117',tx:'#e6edf3',rf:'#161b22',rt:'#fff',nt:'#fff',pal:['#ff5d8f','#ffd23f','#3ef0b0','#4cc9f0','#b388ff','#ff9e4a'],ns:'outline',ls:'curve',f:F},
+'종이 노트':{bg:'#f3ecdc',tx:'#3b3126',rf:'#3b3126',rt:'#f3ecdc',nt:'#fff',pal:['#a8483a','#b88a2e','#4f7a4a','#3c6e8f','#7a5a8c','#8c5a3c'],ns:'under',ls:'line',f:'"Nanum Myeongjo",Batang,serif'},
+'블루프린트':{bg:'#0b2a4a',tx:'#dff1ff',rf:'#123b66',rt:'#fff',nt:'#fff',pal:['#7fd1ff','#a6ffcb','#ffe28a','#ffb3c1','#c4b5fd','#9ef0ff'],ns:'outline',ls:'elbow',f:'D2Coding,"Courier New",monospace'},
+'미니멀 흑백':{bg:'#fff',tx:'#111',rf:'#111',rt:'#fff',nt:'#fff',pal:['#111','#555','#888','#333','#aaa','#666'],ns:'under',ls:'elbow',f:F}};
+let root,sel,hist=[],fut=[],pres=-1,ov=false,pz=1,seq=[],V=[],dr=null,mr=null,ch=[],cancel=false;
+const cam={x:0,y:0,z:1},tg={x:0,y:0,z:1};
+const th=()=>T[$('thm').value],fl=()=>$('flt').checked,vc=n=>n.col&&pres<0?[]:n.c,fsz=d=>d===0?26:d===1?20:16;
+const par=(n,r=root)=>{for(const c of r.c){if(c===n)return r;const x=par(n,c);if(x)return x}};
+const has=(a,b)=>a===b||a.c.some(c=>has(c,b));
+const GX=60,GY=14;
+function sh(n){const k=vc(n);return n.sh=k.length?Math.max(n.h,k.reduce((a,c)=>a+sh(c),0)+GY*(k.length-1)):n.h}
+function place(l,p,d){let y=p.fy+p.h/2-(l.reduce((a,c)=>a+c.sh,0)+GY*(l.length-1))/2;
+ for(const c of l){c.d=d;c.fx=(d>0?p.fx+p.w+GX:p.fx-GX-c.w)+(fl()?c.ox||0:0);c.fy=y+c.sh/2-c.h/2+(fl()?c.oy||0:0);y+=c.sh+GY;place(vc(c),c,d)}}
+function lay(){V=[];
+ (function m(n,d){X.font=(d<2?'600 ':'')+fsz(d)+'px '+th().f;n.fz=fsz(d);n.w=Math.min(X.measureText(n.t).width,420)+(d?28:44);n.h=n.fz*1.9;vc(n).forEach(c=>m(c,d+1))})(root,0);
+ sh(root);root.fx=-root.w/2+(fl()?root.ox||0:0);root.fy=-root.h/2+(fl()?root.oy||0:0);root.p=null;
+ const k=vc(root),h=$('lyt').value==='bal'?Math.ceil(k.length/2):k.length;place(k.slice(0,h),root,1);place(k.slice(h),root,-1);
+ (function c(n,k,dp){n.k=n.kk!=null?n.kk:k;n.dp=dp;V.push(n);vc(n).forEach((x,i)=>{x.p=n;c(x,dp?n.k:i,dp+1)})})(root,0,0)}
+function fit(){let a=1e9,b=-1e9,c=1e9,d=-1e9;V.forEach(n=>{a=Math.min(a,n.fx);b=Math.max(b,n.fx+n.w);c=Math.min(c,n.fy);d=Math.max(d,n.fy+n.h)});
+ tg.x=(a+b)/2;tg.y=(c+d)/2;tg.z=Math.min((W-90)/(b-a),(H-90)/(d-c),1.5)}
+const rr=(n,g=0)=>{X.beginPath();X.roundRect(n.fx-g,n.fy-g,n.w+2*g,n.h+2*g,7)};
+const wrap=(s,m)=>{const o=[];let l='';for(const ch of s){if(X.measureText(l+ch).width>m){o.push(l);l=ch}else l+=ch}o.push(l);return o};
+function draw(){const S=th();X.setTransform(1,0,0,1,0,0);X.globalAlpha=1;X.fillStyle=S.bg;X.fillRect(0,0,W,H);
+ X.setTransform(cam.z,0,0,cam.z,W/2-cam.x*cam.z,H/2-cam.y*cam.z);
+ const al=n=>pres>0&&!ov&&n.i>=pres?.18:1,pc=n=>S.pal[n.k%S.pal.length];
+ for(const n of V){const p=n.p;if(!p)continue;const a=n.d>0?p.fx+p.w:p.fx,b=n.d>0?n.fx:n.fx+n.w,y1=p.fy+p.h/2,y2=n.fy+n.h/2,m=(a+b)/2;
+  X.globalAlpha=al(n);X.strokeStyle=pc(n);X.lineWidth=n.dp<2?3:2;X.beginPath();X.moveTo(a,y1);
+  if(S.ls==='curve')X.bezierCurveTo(m,y1,m,y2,b,y2);else if(S.ls==='elbow'){X.lineTo(m,y1);X.lineTo(m,y2);X.lineTo(b,y2)}else X.lineTo(b,y2);X.stroke()}
+ X.textBaseline='middle';X.textAlign='center';
+ for(const n of V){X.globalAlpha=al(n);const c=pc(n),cy=n.fy+n.h/2;X.font=(n.dp<2?'600 ':'')+n.fz+'px '+S.f;
+  if(n===root){X.fillStyle=S.rf;rr(n);X.fill();X.strokeStyle=S.tx;X.lineWidth=2;X.stroke();X.fillStyle=S.rt}
+  else if(S.ns==='fill'){X.fillStyle=c;rr(n);X.fill();X.fillStyle=S.nt}
+  else if(S.ns==='outline'){X.fillStyle=S.bg;rr(n);X.fill();X.strokeStyle=c;X.lineWidth=2;X.stroke();X.fillStyle=S.tx}
+  else{X.strokeStyle=c;X.lineWidth=2.5;X.beginPath();X.moveTo(n.fx,n.fy+n.h);X.lineTo(n.fx+n.w,n.fy+n.h);X.stroke();X.fillStyle=S.tx}
+  X.fillText(n.t,n.fx+n.w/2,cy,n.w-16);
+  if(n===sel&&pres<0){X.strokeStyle='#f5a623';X.lineWidth=2;X.setLineDash([5,4]);rr(n,4);X.stroke();X.setLineDash([])}
+  if(n!==root&&n.c.length&&pres<0){const dx=n.d>0?n.fx+n.w+9:n.fx-9;X.beginPath();X.arc(dx,cy,6,0,7);X.strokeStyle=c;X.lineWidth=1.5;X.stroke();if(n.col){X.fillStyle=c;X.fill()}}}
+ X.setTransform(1,0,0,1,0,0);X.globalAlpha=1;
+ if(pres>0){const n=seq[pres-1];X.font='14px '+S.f;X.textAlign='right';X.fillStyle=S.tx;X.globalAlpha=.6;X.fillText(pres+' / '+seq.length,W-16,18);X.globalAlpha=1;
+  if(!ov&&n.n&&n.n!==n.t){X.font='22px '+S.f;X.textAlign='left';let l=wrap(n.n,W-120);if(l.length>4){l=l.slice(0,4);l[3]=l[3].slice(0,-1)+'…'}
+   const h=l.length*32+24;X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,H-h-16,W,h+16);X.fillStyle='#fff';l.forEach((s,i)=>X.fillText(s,60,H-h+12+i*32))}}}
+(function loop(){requestAnimationFrame(loop);for(const k of['x','y','z'])cam[k]+=(tg[k]-cam[k])*.14;if(root)draw()})();
+function snap(){hist.push(JSON.stringify(ser(root)));if(hist.length>80)hist.shift();fut=[]}
+const ser=n=>({t:n.t,n:n.n,col:n.col,ox:n.ox,oy:n.oy,kk:n.kk,c:n.c.map(ser)});
+function undo(){if(hist.length){fut.push(JSON.stringify(ser(root)));root=JSON.parse(hist.pop());sel=root;lay()}}
+function redo(){if(fut.length){hist.push(JSON.stringify(ser(root)));root=JSON.parse(fut.pop());sel=root;lay()}}
+function add(sib){snap();let p=sel,i;if(sib&&sel!==root){p=par(sel);i=p.c.indexOf(sel)+1}else{sel.col=false;i=sel.c.length}
+ const n={t:'새 항목',c:[]};p.c.splice(i,0,n);sel=n;lay();edit()}
+function del(){if(sel===root)return;snap();const p=par(sel);p.c.splice(p.c.indexOf(sel),1);sel=p;lay()}
+function tog(){if(sel.c.length){snap();sel.col=!sel.col;lay()}}
+function colr(){snap();sel.kk=((sel.kk!=null?sel.kk:sel.k)+1)%th().pal.length;lay()}
+function edit(){const n=sel,e=$('ed'),k=C.getBoundingClientRect().width/W,z=cam.z;
+ Object.assign(e.style,{display:'block',left:(n.fx-cam.x)*z*k+W/2*k+'px',top:(n.fy-cam.y)*z*k+H/2*k+'px',width:Math.max(n.w*z*k,90)+'px',height:n.h*z*k+'px',font:n.fz*z*k+'px '+th().f});
+ e.value=n.t;e.focus();e.select();e.onkeydown=v=>{v.stopPropagation();if(v.key==='Enter'){v.preventDefault();fin(1)}if(v.key==='Escape')fin(0)};e.onblur=()=>fin(1)}
+function fin(ok){const e=$('ed');if(e.style.display==='none')return;e.style.display='none';
+ if(ok&&e.value.trim()&&e.value.trim()!==sel.t){snap();sel.t=e.value.trim();lay()}C.focus()}
+function nav(k){const s=sel,p=par(s);let t;
+ if(k==='arrowup'||k==='arrowdown'){if(p)t=p.c[p.c.indexOf(s)+(k==='arrowdown'?1:-1)]}
+ else{const q=k==='arrowright'?1:-1;if(s===root){const c=vc(root),h=$('lyt').value==='bal'?Math.ceil(c.length/2):c.length;t=q>0?c[0]:c[h]}else t=s.d===q?vc(s)[0]:p}
+ if(t)sel=t}
+const pt=e=>{const r=C.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}};
+const w2=p=>({x:(p.x-W/2)/cam.z+cam.x,y:(p.y-H/2)/cam.z+cam.y});
+const hit=p=>{const w=w2(p);for(let i=V.length;i--;){const n=V[i];if(w.x>=n.fx&&w.x<=n.fx+n.w&&w.y>=n.fy&&w.y<=n.fy+n.h)return n}};
+C.onpointerdown=e=>{if(pres>=0){next();return}C.focus();fin(1);const p=pt(e),w=w2(p);
+ const d=V.find(n=>n!==root&&n.c.length&&Math.hypot(w.x-(n.d>0?n.fx+n.w+9:n.fx-9),w.y-(n.fy+n.h/2))<10);
+ if(d){sel=d;tog();return}const n=hit(p);if(n){sel=n;dr={n,p,g:p}}else dr={pan:1,p,cx:tg.x,cy:tg.y};C.setPointerCapture(e.pointerId)};
+C.onpointermove=e=>{if(!dr)return;const p=pt(e),dx=p.x-dr.p.x,dy=p.y-dr.p.y;
+ if(dr.pan){tg.x=cam.x=dr.cx-dx/cam.z;tg.y=cam.y=dr.cy-dy/cam.z;return}
+ dr.g=p;if(Math.hypot(dx,dy)>5)dr.moved=1;
+ if(dr.moved&&fl()){if(!dr.sn){snap();dr.sn=1;dr.ox=dr.n.ox||0;dr.oy=dr.n.oy||0}dr.n.ox=dr.ox+dx/cam.z;dr.n.oy=dr.oy+dy/cam.z;lay()}};
+C.onpointerup=()=>{if(dr&&dr.moved&&!fl()&&dr.n){const t=hit(dr.g),n=dr.n;
+  if(t&&n!==root&&!has(n,t)){snap();const p=par(n);p.c.splice(p.c.indexOf(n),1);t.c.push(n);t.col=false;sel=n;lay()}}dr=null};
+C.ondblclick=e=>{if(pres<0){const n=hit(pt(e));if(n){sel=n;edit()}}};
+C.addEventListener('wheel',e=>{e.preventDefault();const p=pt(e),w=w2(p),z=Math.min(4,Math.max(.15,tg.z*(e.deltaY<0?1.12:.89)));
+ cam.z=tg.z=z;cam.x=tg.x=w.x-(p.x-W/2)/z;cam.y=tg.y=w.y-(p.y-H/2)/z},{passive:false});
+function startP(){seq=[];(function f(n){n.i=seq.push(n)-1;n.c.forEach(f)})(root);pres=0;ov=true;pz=1;lay();fit()}
+function exitP(){cancel=true;if(mr)rec(false);pres=-1;ov=false;lay();fit()}
+function foc(){const n=seq[pres-1];tg.z=Math.min(520/n.w,2.4)*pz;tg.x=n.fx+n.w/2;tg.y=n.fy+n.h/2+50/tg.z}
+function go(i){pres=i;ov=false;foc()}
+function next(){if(pres<0){startP();go(1)}else if(pres===0)go(1);else if(ov)go(pres);else if(pres<seq.length)go(pres+1);else{pres=0;ov=true;fit()}}
+function prev(){if(pres>1)go(pres-1)}
+function rec(on){if(!on){if(mr)mr.stop();return}
+ if(mr||!window.MediaRecorder){$('st').textContent='이 브라우저는 녹화를 지원하지 않아요.';return false}
+ const mt=['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm'].find(m=>MediaRecorder.isTypeSupported(m))||'',ext=mt.includes('mp4')?'mp4':'webm';
+ ch=[];mr=new MediaRecorder(C.captureStream(30),mt?{mimeType:mt,videoBitsPerSecond:6e6}:{});
+ mr.ondataavailable=e=>e.data.size&&ch.push(e.data);
+ mr.onstop=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(ch,{type:mr.mimeType}));a.download='mindmap.'+ext;a.click();mr=null;
+  $('st').textContent='저장됨: mindmap.'+ext+(ext==='webm'?' (이 브라우저는 MP4 녹화를 지원하지 않아 WebM으로 저장했어요)':'')};
+ mr.start();$('st').textContent='● 녹화 중';return true}
+async function auto(){if(!rec(true))return;cancel=false;const s=(+$('sec').value||3)*1000,z=ms=>new Promise(r=>setTimeout(r,ms));
+ startP();await z(s*.8);for(let i=1;i<=seq.length&&!cancel&&mr;i++){go(i);await z(s)}
+ if(mr&&!cancel){ov=true;fit();await z(1500)}if(mr)rec(false);if(!cancel)exitP()}
+document.addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName))return;const k=e.key.toLowerCase(),M=e.ctrlKey||e.metaKey;
+ if(M&&(k==='z'||k==='y')){(k==='y'||e.shiftKey?redo:undo)();e.preventDefault();return}
+ if(!root)return;let u=1;
+ if(k==='r')mr?rec(false):rec(true);
+ else if(pres>=0){if(' n arrowright pagedown enter'.split(' ').includes(k)||k===' ')next();else if(['p','arrowleft','pageup','backspace'].includes(k))prev();
+  else if(k==='+'||k==='='){pz*=1.15;if(pres>0&&!ov)foc()}else if(k==='-'){pz/=1.15;if(pres>0&&!ov)foc()}
+  else if(k==='o'){ov=!ov;if(ov)fit();else if(pres>0)foc()}else if(k==='escape')exitP();else u=0}
+ else if(k===' ')next();else if(k==='tab')add(0);else if(k==='enter')add(1);else if(k==='delete'||k==='backspace')del();
+ else if(k==='f2')edit();else if(k==='c')tog();else if(k==='k')colr();else if(k==='f')fit();else if(k.startsWith('arrow'))nav(k);else u=0;
+ if(u)e.preventDefault()});
+const A={bAc:()=>add(0),bAs:()=>add(1),bDl:del,bCl:tog,bCo:colr,bUn:undo,bRe:redo,bFt:fit,bPr:()=>pres<0?startP():exitP(),
+ bFs:()=>C.requestFullscreen&&C.requestFullscreen(),bRc:auto,bPg:()=>C.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='mindmap.png';a.click()})};
+for(const k in A)$(k).onclick=()=>{if(root||k==='bFs')A[k]();C.focus()};
+Object.keys(T).forEach(k=>$('thm').add(new Option(k,k)));
+$('thm').onchange=$('lyt').onchange=$('flt').onchange=()=>{if(root){lay();if(pres<0)fit()}};
+let engine;
+async function aiMD(t){if(!navigator.gpu)throw new Error('WebGPU 미지원 브라우저');
+ if(!engine){const w=await import('https://esm.run/@mlc-ai/web-llm');engine=await w.CreateMLCEngine('Qwen2.5-1.5B-Instruct-q4f16_1-MLC',{initProgressCallback:p=>$('st').textContent='모델 준비 중… '+(p.text||'')})}
+ $('st').textContent='AI가 글을 정리하는 중…';
+ const r=await engine.chat.completions.create({temperature:.2,messages:[{role:'system',content:'너는 글을 마인드맵용 마크다운 개요로 정리한다. 첫 줄은 "# 제목", 큰 갈래는 "## ", 그 아래 항목은 "### ", 세부 내용은 "- ". 모든 줄은 한국어 20자 이내의 짧은 구로 쓴다. 설명 없이 마크다운만 출력한다.'},{role:'user',content:t.slice(0,3000)}]});
+ return r.choices[0].message.content.replace(/```\w*/g,'').trim()}
+$('bGo').onclick=async()=>{const t=$('inp').value.trim();if(!t){$('st').textContent='글을 먼저 붙여 넣어 주세요.';return}
+ $('bGo').disabled=true;let r,note='규칙 기반으로 생성했어요.';
+ try{if($('mode').value==='ai'){r=parse(await aiMD(t));note='AI 모델로 생성했어요.'}else r=parse(t)}catch(e){r=parse(t);note='AI를 쓸 수 없어 규칙 기반으로 생성했어요 ('+e.message+')'}
+ root=r;sel=root;hist=[];fut=[];pres=-1;ov=false;lay();fit();Object.assign(cam,tg);$('st').textContent=note;$('bGo').disabled=false};
+$('bSm').onclick=()=>{$('inp').value=SAMPLE;$('bGo').click()};
+$('inp').value=SAMPLE;$('bGo').click();
+</script></body></html>
