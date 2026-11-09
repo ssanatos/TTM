@@ -15,7 +15,7 @@ button.g{background:transparent;color:var(--ac)}button:disabled{opacity:.5}
 #w{position:relative}#cv{width:100%;height:auto;display:block;border-radius:6px;touch-action:none}
 #cv:fullscreen{width:100vw;height:100vh;object-fit:contain;border-radius:0}
 #ed{position:absolute;display:none;z-index:2;text-align:center;padding:0 6px;color:#000;background:#fff}
-dialog{border:1px solid var(--bd);border-radius:10px;background:var(--cd);color:var(--tx);padding:12px}#pcv{background:#fff;border:1px solid var(--bd);border-radius:6px;touch-action:none;max-width:100%;display:block}input[type=color]{padding:0;width:40px;height:30px}#sec{width:56px}#st{color:var(--mu);font-size:12px}.h{color:var(--mu);font-size:12px;margin:8px 0 0}
+dialog{border:1px solid var(--bd);border-radius:10px;background:var(--cd);color:var(--tx);padding:12px}#pcv{background:#fff;border:1px solid var(--bd);border-radius:6px;touch-action:none;max-width:100%;display:block}input[type=color]{padding:0;width:40px;height:30px}.ctx{margin:6px 0;color:var(--mu);line-height:1.7}.ctx mark{background:#f5a62355;color:var(--tx);padding:1px 2px;border-radius:3px}#sec{width:56px}#st{color:var(--mu);font-size:12px}.h{color:var(--mu);font-size:12px;margin:8px 0 0}
 </style></head><body><main>
 <h1>글을 마인드맵으로</h1>
 <div class="cd"><textarea id="inp" placeholder="글 또는 들여쓰기·번호가 있는 개요를 붙여 넣으세요"></textarea>
@@ -24,42 +24,122 @@ dialog{border:1px solid var(--bd);border-radius:10px;background:var(--cd);color:
 <div class="cd"><div class="r" style="margin:0 0 8px">
 <select id="thm" aria-label="디자인"></select>
 <select id="lyt" aria-label="배치"><option value="bal">좌우 균형</option><option value="r">오른쪽으로</option></select>
-<label><input type="checkbox" id="flt"> 플로팅(자유 배치)</label>
+<label><input type="checkbox" id="flt"> 플로팅(자유 배치)</label><label><input type="checkbox" id="full"> 전체 문장 펼치기</label><button id="bEx" class="g">선택 문장 펼치기/접기</button><label>영상 주소 <input id="vurl" placeholder="유튜브 주소(선택)" style="width:210px"></label>
 <button id="bAc" class="g">자식 +</button><button id="bAs" class="g">형제 +</button><button id="bDl" class="g">삭제</button><button id="bCl" class="g">접기/펴기</button><button id="bCo" class="g">색 바꾸기</button><button id="bUn" class="g">↶</button><button id="bRe" class="g">↷</button><button id="bFt" class="g">맞춤</button><button id="bPg" class="g">PNG</button><button id="bIm" class="g">이미지 첨부</button><button id="bDr" class="g">그림 그리기</button><button id="bIx" class="g">이미지 제거</button><input type="file" id="fIm" accept="image/*" hidden>
 </div><div class="r" style="margin:0 0 8px"><button id="bPr">발표</button><button id="bFs" class="g">전체화면</button>
 <button id="bRc">MP4 자동 녹화</button><label>단계당 <input id="sec" type="number" min="1" max="30" value="3"> 초</label></div>
-<div id="w"><canvas id="cv" tabindex="0"></canvas><input id="ed"></div>
-<p class="h"><b>편집</b> 클릭 선택 · 더블클릭/F2 이름 수정 · Tab 자식 · Enter 형제 · Delete 삭제 · C 접기 · K 색 · 방향키 이동 · 배경 드래그 이동 · 휠 확대 · Ctrl+Z/Y · 노드를 다른 노드 위에 놓으면 부모 변경(플로팅 끄기), 플로팅 켜면 자유 이동<br>
+<div id="w"><canvas id="cv" tabindex="0"></canvas><input id="ed"></div><div id="dt" aria-live="polite" style="font-size:13px;margin-top:10px"></div>
+<p class="h"><b>편집</b> 클릭 선택(아래에 전체 문장·원문 앞뒤·영상 시각 링크 표시) · 더블클릭/F2 이름 수정 · Tab 자식 · Enter 형제 · Delete 삭제 · C 접기 · E 문장 펼치기(생략된 문장 전체 보기) · K 색 · 방향키 이동 · 배경 드래그 이동 · 휠 확대 · Ctrl+Z/Y · 노드를 다른 노드 위에 놓으면 부모 변경(플로팅 끄기), 플로팅 켜면 자유 이동<br>
 <b>발표</b> Space 시작/다음 · N/→ 다음 · P/← 이전 · +/− 확대·축소 · O 전체 보기 · R 녹화 시작/종료 · Esc 종료<br><b>이미지</b> 노드 선택 후 '이미지 첨부'(파일 끌어다 놓기·붙여넣기도 가능) 또는 '그림 그리기'로 패드 열기 · 이미 있는 이미지는 패드에서 이어 그릴 수 있어요</p></div>
 <dialog id="pad"><div class="r" style="margin:0 0 8px"><input type="color" id="pc" value="#222222" aria-label="색"><label>굵기 <input type="range" id="ps" min="1" max="40" value="4"></label><button id="pE" class="g">지우개</button><button id="pU" class="g">되돌리기</button><button id="pX" class="g">전체 지우기</button></div><canvas id="pcv" width="480" height="360"></canvas><div class="r"><button id="pOk">노드에 넣기</button><button id="pNo" class="g">취소</button></div></dialog></main>
 <script>
 //PARSE-START
+let SRC=null;
 const RS=/^(?:#+\s*)?(?:제?\s*[0-9Ⅰ-Ⅹ]+\s*[장절부.)]\s*)?(서\s?론|본\s?론|결\s?론|들어가며|들어가는\s?말|머리말|문제\s?제기|맺으며|맺는\s?말|맺음말|마치며|결어|요약)\s*(?:[:：\-–.)\]]\s*|$)(.*)$/;
 const MH=/^(#{1,6})\s+(.+)$/,NH=/^(?:제\s?\d+\s?[장절부]|[Ⅰ-Ⅹ]+[.)])\s*(.+)$/;
 const BU=/^(\s*)([-*•·▪▶▷○●■□◆◇▸>]|\d+[.)]|\(\d+\)|[①-⑳]|[가-하][.)]|[A-Za-z][.)])\s+(.+)$/;
 const KEYS='첫째|둘째|셋째|넷째|다섯째|여섯째|(?:첫|두|세|네|다섯|여섯)\\s?번째|하나는|둘은|셋은|또\\s?하나는|먼저|우선|다음으로|이어서|그다음|마지막으로|끝으로|아울러|또한|무엇보다|first(?:ly)?|second(?:ly)?|third(?:ly)?|finally|lastly';
 const EN=new RegExp('^('+KEYS+')[로는은이가]?(?=[\\s,:：]|$)[\\s,:：]*','i');
-const CN=/^(그러나|하지만|그런데|그리고|따라서|그래서|그러므로|즉|결국|특히|게다가|예를 들어|예컨대|요컨대|결론적으로|요약하면|이처럼|이렇듯|물론|다만)[\s,]+/;
+const CN=/^(그러나|하지만|그런데|그리고|따라서|그래서|그러므로|즉|결국|특히|게다가|예를 들어|예컨대|요컨대|결론적으로|요약하면|이처럼|이렇듯|물론|다만|그러면은?|그럼|근데|그렇다면|그렇듯이|사실|제가|저는|내가|여러분들?|우리는|그럼이?|이게|그게)[\s,]+/;
 const sn=t=>t.replace(/\s+/g,' ').trim().split(/(?<=[가-힣a-zA-Z)\]"'”’][.!?。])\s+/).filter(Boolean);
-function lab(s){s=s.trim().replace(EN,'').replace(CN,'').replace(/^["“'‘(\[]+|["”'’)\]]+$/g,'').replace(/[.!?。…]+$/,'').trim();
+function lab(s,n=24){s=s.trim().replace(EN,'').replace(CN,'').replace(/^["“'‘(\[]+|["”'’)\]]+$/g,'').replace(/[‘’“”]/g,'').replace(/[.!?。…]+$/,'').trim();
  const m=s.match(/^(.{8,26}?)(?:\s*[,，;；]|\s(?:그리고|하지만|그러나|그래서)\s|(?:는데|지만|으며|면서|이며|이고|해서|하여|하며|인데)\s)/);if(m)s=m[1];
- s=s.replace(/\s?(입니다|것이다|이다)$/,'');
- if(s.length>24){const k=s.lastIndexOf(' ',22);s=s.slice(0,k>8?k:23)+'…'}return s||'…'}
+ s=s.replace(/\s?(?:는|라는|다는|이라는)?\s?(?:거예요|거죠|겁니다|것입니다|것이에요|거야)$/,'').replace(/\s?(입니다|것이다|이다)$/,'').replace(/(?<=[가-힣]{3})(?:죠|네요|예요|에요|어요|아요|세요|해요|돼요)$/,'');
+ if(s.length>n){const k=s.lastIndexOf(' ',n-2);s=s.slice(0,k>8?k:n-1)+'…'}return s||'…'}
 function mk(s){s=s.replace(EN,'');const m=s.match(/^([^:：]{2,16})[:：]\s*(.{6,})$/);
  if(m)return{t:m[1].trim(),n:s,c:[{t:lab(m[2]),n:m[2],c:[]}]};return{t:lab(s),n:s,c:[]}}
+const TS=/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(?:\d+분)?\s*(?:\d+초)?\s*/,GR=/감사합니다|안녕하세요|구독|좋아요|알림 설정|댓글|아시겠|그렇죠|그렇잖아|생각해 보셨|보셨나요|맞죠/;
+const clean=s=>s.replace(/(^|\s)(어+|음+|뭐|자|아)(?=[\s,]|$),?/g,' ').replace(/\s+/g,' ').trim();
+const sp=s=>{if(s.length<=110)return[s];const o=[];let c='';for(const p of s.split(/(?<=(?:다|요|죠|까|니다|네요|예요|세요))\s+/)){c=c?c+' '+p:p;if(c.length>=30){o.push(c);c=''}}if(c){if(o.length)o[o.length-1]+=' '+c;else o.push(c)}return o};
+const SUF=/(에서는|에서도|에서|으로는|으로써|으로|에게서|에게|한테|까지|부터|처럼|보다|만큼|이라고|라고|이라는|라는|이라면|라면|에는|에도|에|의|은|는|이|가|을|를|과|와|도|만|로|들|께서|께|이나|나|입니다|이다|이에요|예요|했습니다|했다|했고|하였|하고|하며|하는|하게|하면서|하면|하기|한다|합니다|할|한|됩니다|된다|되는|되어|돼서|됐다|인데|이고)$/;
+const STOP=new Set('이것 그것 저것 우리 여러분 정말 지금 그리고 그러면 이렇게 그렇게 때문 하지만 제가 정도 어떤 모든 다시 아주 너무 바로 이런 그런 저는 내가 나는 그럼 그래서 그러나 또는 이제 오늘 말씀 생각 부분 경우 사실 계속 항상 매우 가장 함께 통해 대한 위한 같은 있는 없는 하는 되는 있습 있었 있다 없다 않는 아닌 아니 이게 그게 무엇 어디 언제 누구 어떻게 여러 많이 조금 자체 관련 이후 이전 동안 중요 마치 지만 그건 이건 저건 하여 됩니 나오 나온 보이 보는 보면 보고 갖고 가지 하나 거의 이렇 그렇 어떻 모두 아무 대부분 계속해서 특히 결국 한번 어떻게 이미 아직 먼저 이야기 말씀드 하시 되면 되고 되어 같이 같은 입니 합니 습니 그냥 진짜 근데 하면 해서 이라 라고 수도 이른바 측면 이참 그렇다고 그러듯이 그러면서 아니라 이들 이를 이에 이로 여기 거기 때문에 따라 위해 대해 통해 관해 만큼 뿐만 이상 이하 가운데 사이 중에 비롯 않았 않을 되었 했던'.split(' '));
+const stem=w=>{for(let k=0;k<2;k++){const m=w.match(SUF);if(m&&w.length-m[0].length>=2)w=w.slice(0,-m[0].length)}return w};
+const toks=s=>(s.match(/[가-힣]{2,}[0-9]*|[A-Za-z]{3,}|\d+[가-힣%]+/g)||[]).map(w=>stem(w.toLowerCase())).filter(w=>w.length>=2&&!STOP.has(w)&&!/^.+[다요]$|^.+게$|[았었]$|까요$|니다$|(해서|으니|니까|면서|으면|려고|도록|듯이|라서|어서|아서|해도|하면|해야|이며|하며|으며)$/.test(w)&&!/^[수것때데바줄리][가도는을만이에]$/.test(w));
+function tstream(L){
+ const Ls=L.map(l=>l.trim()).filter(Boolean),run=uc=>{let full='';const off=[],chp=[];let pt=false;
+  for(let k=0;k<Ls.length;k++){const x=Ls[k],m=x.match(TS);
+   if(m){const q=x.slice(m[0].length);off.push([full.length,m[3]?m[1]+':'+m[2]+':'+m[3]:m[1]+':'+m[2]]);full+=q+' ';pt=!!q.trim()}
+   else if(uc&&pt&&x.length<=50&&!/[.!?。]$/.test(x)&&Ls[k+1]&&TS.test(Ls[k+1])){chp.push({pos:full.length,t:x});pt=false}
+   else{full+=x+' ';pt=true}}
+  return{full,off,chp}};
+ let R=run(true);const cue=L.filter(l=>TS.test(l.trim())).length;if(R.chp.length<2||R.chp.length>cue/5)R=run(false);
+ const{full,off,chp}=R,b=[0];
+ for(const m of full.matchAll(/(?<=[가-힣a-zA-Z)\]"'”’][.!?。])(?:\s+|(?=[가-힣]))/g))b.push(m.index+m[0].length);
+ const S=[],tm=[],pp=[];b.forEach((p,i)=>{const t=(off.filter(o=>o[0]<=p).pop()||[0,''])[1];for(const q of sp(clean(full.slice(p,b[i+1]).trim())))if(q.length>3){S.push(q);tm.push(t);pp.push(p)}});
+ return{S,tm,chs:chp.map(c=>({t:c.t,si:pp.findIndex(p=>p>=c.pos)})).filter(c=>c.si>=0)}}
+const trL=L=>{const N=L.filter(l=>l.trim());return N.length>=5&&N.filter(l=>TS.test(l.trim())).length>=N.length*.4};
+const plain=raw=>trL(raw.split('\n'))?tstream(raw.replace(/\r/g,'').split('\n')).S.join(' '):raw;
+function topic(S,title,tm,paras,chs){SRC={S,tm};const N=S.length,T=S.map(toks),df={},cl=(x,a,b)=>Math.max(a,Math.min(b,x));
+ T.forEach(t=>new Set(t).forEach(w=>df[w]=(df[w]||0)+1));
+ const idf=w=>Math.log(1+N/(df[w]||1)),vec=(a,b)=>{const v={};for(let i=a;i<b;i++)T[i].forEach(w=>v[w]=(v[w]||0)+idf(w));return v};
+ const cos=(x,y)=>{let d=0,a=0,b=0;for(const w in x){a+=x[w]*x[w];if(y[w])d+=x[w]*y[w]}for(const w in y)b+=y[w]*y[w];return a&&b?d/Math.sqrt(a*b):0};
+ const cuts=(a,b,K,mn,win)=>{const g=[];for(let i=a+mn;i<=b-mn;i++)g.push([cos(vec(Math.max(a,i-win),i),vec(i,Math.min(b,i+win))),i]);
+  g.sort((x,y)=>x[0]-y[0]);const c=[a,b];for(const[,i]of g){if(c.length-1>=K)break;if(c.every(x=>Math.abs(x-i)>=mn))c.push(i)}return c.sort((x,y)=>x-y)};
+ const kw=(a,b,n,w2,ex=[])=>{const sc={};for(let i=a;i<b;i++)T[i].forEach(w=>{if(!ex.includes(w))sc[w]=(sc[w]||0)+idf(w)*(w2?Math.log(1+w2.n/(w2.d[w]||1)):1)});const o=[];
+  for(const w of Object.keys(sc).sort((x,y)=>sc[y]-sc[x])){if(o.length>=n)break;if(!o.some(z=>z.includes(w)||w.includes(z))&&!ex.some(z=>z.includes(w)||w.includes(z)))o.push(w)}return o};
+ const tag=x=>/[“"‘'][^”"’']{4,}[”"’'].{0,14}(했다|말했다|밝혔다|주장했다|덧붙였다|강조했다|지적했다|당부했다)/.test(x)?'발언':/수도 있|지도 모르|일 수 있|듯하|것 같|가능성/.test(x)?'추측':/불길|해야 한다|해야 했|필요하다|필요가 있|바람직|가깝|가까워 보인다|보인다\.?$|우려|위험하|라고 생각|판단한다|원인이다|문제다|않았을 것|것이다\.?$/.test(x)?'주장':'';
+ const keys=(a,b,m,o={})=>{const sc=[];for(let i=a;i<b;i++){if(S[i].length<8||GR.test(S[i])||(o.used&&o.used.has(i)))continue;const u=[...new Set(T[i])];
+   sc.push([u.reduce((x,w)=>x+idf(w),0)/Math.sqrt(S[i].length)*(/중요|핵심|결국|즉|반드시|해야|때문|이유|결론|진리|원칙/.test(S[i])?1.3:1)*(o.w?(tag(S[i])==='주장'?1.5:1)*(i===a?1.2:1):1),i])}
+  let ids=sc.sort((x,y)=>y[0]-x[0]).slice(0,m).map(x=>x[1]);if(o.f!=null&&!ids.includes(o.f)&&S[o.f].length>=8&&!(o.used&&o.used.has(o.f))){if(ids.length>=m)ids.pop();ids.push(o.f)}
+  return ids.sort((x,y)=>x-y).map(i=>{const g=o.w?tag(S[i]):'';return{t:(g?g+' · ':'')+lab(S[i]),n:S[i],si:i,c:[]}})};
+ const tt=i=>tm&&tm[i]?tm[i]+' ':'';
+ if(paras&&paras.length>=4){const cir='①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮',rk=kw(0,N,3,null);
+  let G=paras.map(p=>[p[0],p[1]]);const tgt=Math.min(7,Math.max(3,Math.ceil(G.length/1.5)));
+  while(G.length>tgt){let bi=0,bs=-9;for(let i=0;i<G.length-1;i++){const q=cos(vec(...G[i]),vec(...G[i+1]))-.015*(G[i+1][1]-G[i][0]);if(q>bs){bs=q;bi=i}}G.splice(bi,2,[G[bi][0],G[bi+1][1]])}
+  const sd={};G.forEach(g=>{const u=new Set();for(let i=g[0];i<g[1];i++)T[i].forEach(w=>u.add(w));u.forEach(w=>sd[w]=(sd[w]||0)+1)});
+  const w2={n:G.length,d:sd},root={t:title||rk.join(' · ')||'글 요약',c:[]},cs=[];
+  const lastS=new Set(paras.map(p=>p[1]-1));
+  for(let i=0;i<N;i++)if(S[i].length>=10&&tag(S[i])==='주장')cs.push([T[i].reduce((x,w)=>x+idf(w),0)/Math.sqrt(S[i].length)*(i>=N*.6?1.2:1)*(/불길|가까워 보인다|해야 한다|바람직|필요하다|더라면/.test(S[i])?2:1)*(lastS.has(i)?1.3:1),i]);
+  const used=new Set(),ck=cs.sort((x,y)=>y[0]-x[0]).slice(0,3).map(x=>x[1]).sort((x,y)=>x-y);
+  if(ck.length>=2){ck.forEach(i=>used.add(i));root.c.push({t:'★ 핵심 주장',c:ck.map(i=>({t:lab(S[i]),n:S[i],si:i,c:[]}))})}
+  G.forEach((g,j)=>{const[a,b]=g,key=kw(a,b,3,w2,rk),f=S[a]||'',
+   cue=/^(그렇다고|하지만|그러나|반면|다만|그런데|무엇보다)/,
+   role=j===0?'도입 · ':j===G.length-1?'결론 · ':(cue.test(f)||cue.test(S[a+1]||''))?'전환 · ':[...Array(b-a)].filter((_,k)=>tag(S[a+k])==='추측').length>=2?'해석 · ':/더라면|했어야|조정할 필요|해야 한다/.test(S.slice(a,b).join(' '))?'제언 · ':'';
+   let kk=keys(a,b,cl(Math.round((b-a)/3),1,3)+(j===0||j===G.length-1?1:0),{used,w:1,f:j===0?a:j===G.length-1?b-1:null});if(!kk.length)kk=keys(a,b,1,{w:1});
+   root.c.push({si:a,t:cir[j]+' '+role+(key.join(', ')||'내용'),c:kk})});
+  return root}
+ const rk=kw(0,N,3,null),SPK=/핵심 질문|핵심은|결론은|진짜 결론|중요한 것은|가장 중요|명제|오늘 영상|꼭 기억|인사이트|본질|정확하게 세 가지|이 점입니다/,isQ=x=>/[?？]\s*$/.test(x);
+ const hl=i=>(isQ(S[i])?'❓ ':'')+lab(S[i],30);
+ const head=(a,b,ex)=>{let best=-1,bs=-1;for(let i=a;i<b;i++){const x=S[i];if(x.length<10||x.length>90||GR.test(x)||ex.has(i))continue;
+   const m=[...new Set(T[i])].reduce((p,w)=>p+idf(w),0)/Math.sqrt(x.length)*(isQ(x)&&i<a+(b-a)*.6?1.8:1)*(tag(x)==='주장'||SPK.test(x)?1.5:1)*(i===a?1.15:1)*(x.length<14?.5:1);if(m>bs){bs=m;best=i}}return best};
+ const gx=new Set();let cm=[];
+ for(let i=0;i<N;i++)if(S[i].length>=12&&S[i].length<=130&&SPK.test(S[i]))cm.push([[...new Set(T[i])].reduce((p,w)=>p+idf(w),0)/Math.sqrt(S[i].length)*(i<N*.15||i>N*.8?1.3:1),i]);
+ let ci=cm.sort((x,y)=>y[0]-x[0]).slice(0,3).map(x=>x[1]);ci.slice().forEach(i=>{if(/명제입니다|다음과 같/.test(S[i])&&S[i+1]&&!ci.includes(i+1))ci.push(i+1)});
+ ci=[...new Set(ci)].sort((x,y)=>x-y);
+ let segs=[];
+ if(chs&&chs.length>=2){const st=[];chs.forEach(c=>{if(c.si>0&&c.si<N&&(!st.length||c.si>st[st.length-1].si))st.push(c)});
+  if(st.length>=2){if(st[0].si>=3)segs.push({a:0,b:st[0].si,title:'',pre:'도입 · '});
+   st.forEach((c,k)=>segs.push({a:k===0&&st[0].si<3?0:c.si,b:k+1<st.length?st[k+1].si:N,title:c.t,pre:''}))}}
+ if(!segs.length){const K1=cl(Math.round(N/45),3,8),c1=cuts(0,N,K1,Math.max(4,Math.floor(N/(2*K1))),6),n1=c1.length-1;
+  for(let k=0;k<n1;k++)segs.push({a:c1[k],b:c1[k+1],title:'',pre:n1>3&&k===0?'도입 · ':n1>3&&k===n1-1?'마무리 · ':''})}
+ const sd={};segs.forEach(g=>{const u=new Set();for(let i=g.a;i<g.b;i++)T[i].forEach(w=>u.add(w));u.forEach(w=>sd[w]=(sd[w]||0)+1)});
+ const w2={n:segs.length,d:sd},root={t:title||rk.join(' · ')||'글 요약',c:[]};
+ if(ci.length>=2){ci.forEach(i=>gx.add(i));root.c.push({t:'★ 핵심 메시지',c:ci.map(i=>({si:i,t:hl(i),n:S[i],c:[]}))})}
+ const sub=(a,b,ex)=>{const L=b-a;
+  if(L>=18){const K2=cl(Math.round(L/9),2,5),c2=cuts(a,b,K2,Math.max(3,Math.floor(L/(2*K2))),4),o=[];
+   for(let j=0;j<c2.length-1;j++){const x=c2[j],y=c2[j+1],h=head(x,y,ex);if(h<0)continue;ex.add(h);
+    const sup=keys(x,y,y-x>=14?1:0,{used:ex});sup.forEach(q=>ex.add(q.si));o.push({si:h,t:tt(x)+hl(h),n:S[h],c:sup})}return o}
+  const o=keys(a,b,cl(Math.round(L/4),2,4),{used:ex});o.forEach(q=>ex.add(q.si));return o};
+ for(const g of segs){const ex=new Set(gx),h=head(g.a,g.b,ex),key=kw(g.a,g.b,3,w2,rk);
+  const node={si:g.a,t:tt(g.a)+g.pre+(g.title||(h>=0?hl(h):key.join(', ')||'내용')),n:'키워드: '+key.join(', '),c:[]};
+  if(h>=0)ex.add(h);if(g.title&&h>=0)node.c.push({si:h,t:hl(h),n:S[h],c:[]});
+  node.c.push(...sub(g.a,g.b,ex));root.c.push(node)}
+ return root}
 function parse(raw){
- const L=raw.replace(/\r/g,'').split('\n'),root={t:'글 요약',c:[]};let i=0;
+ const L=raw.replace(/\r/g,'').split('\n'),root={t:'글 요약',c:[]};let i=0;SRC=null;
+ if(trL(L)){const q=tstream(L);if(q.S.length>=10)return topic(q.S,'',q.tm,null,q.chs)}
  while(i<L.length&&!L[i].trim())i++;const f=(L[i]||'').trim();
  if(f&&f.length<=45&&!/[.!?。다요]$/.test(f)&&!RS.test(f)&&!BU.test(L[i])&&!/^#{2,}\s/.test(f)&&!NH.test(f)){root.t=f.replace(/^#\s+/,'');i++}
- const B=[];let para=null;const fl=()=>{if(para){B.push({k:'p',x:para.join(' ')});para=null}};
+ const B=[];let para=null;const NE=L.map(l=>l.trim()).filter(l=>l&&!RS.test(l)&&!MH.test(l)&&!NH.test(l)&&!BU.test(l)),lm=NE.length>=4&&!L.some(l=>RS.test(l.trim())||MH.test(l.trim()))&&NE.filter(l=>/[.!?。”’"'…]$/.test(l)).length>=NE.length*.85;const fl=()=>{if(para){B.push({k:'p',x:para.join(' ')});para=null}};
  for(;i<L.length;i++){const l=L[i],t=l.trim();let m;if(!t){fl();continue}
   if(m=t.match(RS)){fl();B.push({k:'h',lv:1,x:m[1].replace(/\s/g,'')});if(m[2])para=[m[2]];continue}
   if(m=t.match(MH)){fl();B.push({k:'h',lv:m[1].length,x:m[2]});continue}
   if(m=t.match(NH)){fl();B.push({k:'h',lv:1,x:m[1]});continue}
   if(m=l.match(BU)){fl();B.push({k:'l',key:m[1].replace(/\t/g,'  ').length*2+(/^(\d|\(|[①-⑳]|[가-하A-Za-z][.)])/.test(m[2])?0:1),x:m[3]});continue}
-  (para=para||[]).push(t)}
+  (para=para||[]).push(t);if(lm)fl()}
  fl();
  const hasH=B.some(b=>b.k==='h'),np=B.filter(b=>b.k==='p').length,hs=[{lv:0,n:root}];let pi=0,cur=root,ls=[];
+ if(!hasH&&!B.some(b=>b.k==='l')){const S=[],P=[];for(const b of B){const a0=S.length;S.push(...sn(b.x).flatMap(sp).map(clean).filter(x=>x.length>3));if(S.length>a0)P.push([a0,S.length])}if(S.length>=10&&S.filter(x=>EN.test(x)).length<2)return topic(S,root.t==='글 요약'?'':root.t,null,P)}
  const head=(lv,x)=>{while(hs[hs.length-1].lv>=lv)hs.pop();const n={t:lab(x),n:x,c:[]};hs[hs.length-1].n.c.push(n);hs.push({lv,n});cur=n;ls=[]};
  const para2=(x,cur)=>{const ss=sn(x),hits=ss.filter(s=>EN.test(s)).length;
   if(hits>=2){let it=null;for(const s of ss){if(EN.test(s)){it=mk(s);cur.c.push(it)}else if(it)it.c.push(mk(s));else cur.c.push(mk(s))}}
@@ -88,17 +168,18 @@ const T={
 '종이 노트':{bg:'#f3ecdc',tx:'#3b3126',rf:'#3b3126',rt:'#f3ecdc',nt:'#fff',pal:['#a8483a','#b88a2e','#4f7a4a','#3c6e8f','#7a5a8c','#8c5a3c'],ns:'under',ls:'line',f:'"Nanum Myeongjo",Batang,serif'},
 '블루프린트':{bg:'#0b2a4a',tx:'#dff1ff',rf:'#123b66',rt:'#fff',nt:'#fff',pal:['#7fd1ff','#a6ffcb','#ffe28a','#ffb3c1','#c4b5fd','#9ef0ff'],ns:'outline',ls:'elbow',f:'D2Coding,"Courier New",monospace'},
 '미니멀 흑백':{bg:'#fff',tx:'#111',rf:'#111',rt:'#fff',nt:'#fff',pal:['#111','#555','#888','#333','#aaa','#666'],ns:'under',ls:'elbow',f:F}};
-let root,sel,hist=[],fut=[],pres=-1,ov=false,pz=1,seq=[],V=[],dr=null,mr=null,ch=[],cancel=false;
+let lastSel=null,ctxN=2,root,sel,hist=[],fut=[],pres=-1,ov=false,pz=1,seq=[],V=[],dr=null,mr=null,ch=[],cancel=false;
 const cam={x:0,y:0,z:1},tg={x:0,y:0,z:1};
 const th=()=>T[$('thm').value],fl=()=>$('flt').checked,vc=n=>n.col&&pres<0?[]:n.c,fsz=d=>d===0?26:d===1?20:16;
 const par=(n,r=root)=>{for(const c of r.c){if(c===n)return r;const x=par(n,c);if(x)return x}};
 const has=(a,b)=>a===b||a.c.some(c=>has(c,b));
+const full=()=>$('full').checked,exp=n=>(n.ex!=null?n.ex:full())&&n.n&&n.n!==n.t&&!n.ed;
 const GX=60,GY=14;
 function sh(n){const k=vc(n);return n.sh=k.length?Math.max(n.h,k.reduce((a,c)=>a+sh(c),0)+GY*(k.length-1)):n.h}
 function place(l,p,d){let y=p.fy+p.h/2-(l.reduce((a,c)=>a+c.sh,0)+GY*(l.length-1))/2;
  for(const c of l){c.d=d;c.fx=(d>0?p.fx+p.w+GX:p.fx-GX-c.w)+(fl()?c.ox||0:0);c.fy=y+c.sh/2-c.h/2+(fl()?c.oy||0:0);y+=c.sh+GY;place(vc(c),c,d)}}
 function lay(){V=[];
- (function m(n,d){X.font=(d<2?'600 ':'')+fsz(d)+'px '+th().f;n.fz=fsz(d);n.w=Math.min(X.measureText(n.t).width,420)+(d?28:44);n.h=n.fz*1.9;if(n.im){const k=Math.min(1,(d?170:220)/n.iw);n.dw=n.iw*k;n.dh=n.ih*k;n.w=Math.max(n.w,n.dw+20);n.h+=n.dh+10}vc(n).forEach(c=>m(c,d+1))})(root,0);
+ (function m(n,d){X.font=(d<2?'600 ':'')+fsz(d)+'px '+th().f;n.fz=fsz(d);if(exp(n)){n.L=wrap(n.n,d?320:420).slice(0,9);n.w=Math.max(...n.L.map(l=>X.measureText(l).width))+28;n.h=n.fz*1.45*n.L.length+n.fz*.5}else{n.L=null;n.w=Math.min(X.measureText(n.t).width,420)+(d?28:44);n.h=n.fz*1.9}if(n.im){const k=Math.min(1,(d?170:220)/n.iw);n.dw=n.iw*k;n.dh=n.ih*k;n.w=Math.max(n.w,n.dw+20);n.h+=n.dh+10}vc(n).forEach(c=>m(c,d+1))})(root,0);
  sh(root);root.fx=-root.w/2+(fl()?root.ox||0:0);root.fy=-root.h/2+(fl()?root.oy||0:0);root.p=null;
  const k=vc(root),h=$('lyt').value==='bal'?Math.ceil(k.length/2):k.length;place(k.slice(0,h),root,1);place(k.slice(h),root,-1);
  (function c(n,k,dp){n.k=n.kk!=null?n.kk:k;n.dp=dp;V.push(n);vc(n).forEach((x,i)=>{x.p=n;c(x,dp?n.k:i,dp+1)})})(root,0,0)}
@@ -119,16 +200,16 @@ function draw(){const S=th();X.setTransform(1,0,0,1,0,0);X.globalAlpha=1;X.fillS
   else if(S.ns==='outline'){X.fillStyle=S.bg;rr(n);X.fill();X.strokeStyle=c;X.lineWidth=2;X.stroke();X.fillStyle=S.tx}
   else{X.strokeStyle=c;X.lineWidth=2.5;X.beginPath();X.moveTo(n.fx,n.fy+n.h);X.lineTo(n.fx+n.w,n.fy+n.h);X.stroke();X.fillStyle=S.tx}
   if(n.im){const g=n._g||(n._g=img(n.im));if(g.complete&&g.naturalWidth)X.drawImage(g,n.fx+(n.w-n.dw)/2,n.fy+6,n.dw,n.dh)}
-  X.fillText(n.t,n.fx+n.w/2,n.im?n.fy+n.h-n.fz*.95:cy,n.w-16);
+  if(n.L){const lh=n.fz*1.45,y0=(n.im?n.fy+n.h-n.L.length*lh-n.fz*.25:n.fy+(n.h-n.L.length*lh)/2)+lh/2;n.L.forEach((l,k)=>X.fillText(l,n.fx+n.w/2,y0+k*lh,n.w-12))}else X.fillText(n.t,n.fx+n.w/2,n.im?n.fy+n.h-n.fz*.95:cy,n.w-16);
   if(n===sel&&pres<0){X.strokeStyle='#f5a623';X.lineWidth=2;X.setLineDash([5,4]);rr(n,4);X.stroke();X.setLineDash([])}
   if(n!==root&&n.c.length&&pres<0){const dx=n.d>0?n.fx+n.w+9:n.fx-9;X.beginPath();X.arc(dx,cy,6,0,7);X.strokeStyle=c;X.lineWidth=1.5;X.stroke();if(n.col){X.fillStyle=c;X.fill()}}}
  X.setTransform(1,0,0,1,0,0);X.globalAlpha=1;
  if(pres>0){const n=seq[pres-1];X.font='14px '+S.f;X.textAlign='right';X.fillStyle=S.tx;X.globalAlpha=.6;X.fillText(pres+' / '+seq.length,W-16,18);X.globalAlpha=1;
   if(!ov&&n.n&&n.n!==n.t){X.font='22px '+S.f;X.textAlign='left';let l=wrap(n.n,W-120);if(l.length>4){l=l.slice(0,4);l[3]=l[3].slice(0,-1)+'…'}
    const h=l.length*32+24;X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,H-h-16,W,h+16);X.fillStyle='#fff';l.forEach((s,i)=>X.fillText(s,60,H-h+12+i*32))}}}
-(function loop(){requestAnimationFrame(loop);for(const k of['x','y','z'])cam[k]+=(tg[k]-cam[k])*.14;if(root)draw()})();
+(function loop(){requestAnimationFrame(loop);for(const k of['x','y','z'])cam[k]+=(tg[k]-cam[k])*.14;if(root){draw();if(sel!==lastSel){lastSel=sel;showDt()}}})();
 function snap(){hist.push(JSON.stringify(ser(root)));if(hist.length>30)hist.shift();fut=[]}
-const ser=n=>({t:n.t,n:n.n,col:n.col,ox:n.ox,oy:n.oy,kk:n.kk,im:n.im,iw:n.iw,ih:n.ih,c:n.c.map(ser)});
+const ser=n=>({t:n.t,n:n.n,col:n.col,ox:n.ox,oy:n.oy,kk:n.kk,si:n.si,ed:n.ed,ex:n.ex,im:n.im,iw:n.iw,ih:n.ih,c:n.c.map(ser)});
 function undo(){if(hist.length){fut.push(JSON.stringify(ser(root)));root=JSON.parse(hist.pop());sel=root;lay()}}
 function redo(){if(fut.length){hist.push(JSON.stringify(ser(root)));root=JSON.parse(fut.pop());sel=root;lay()}}
 function add(sib){snap();let p=sel,i;if(sib&&sel!==root){p=par(sel);i=p.c.indexOf(sel)+1}else{sel.col=false;i=sel.c.length}
@@ -140,7 +221,7 @@ function edit(){const n=sel,e=$('ed'),k=C.getBoundingClientRect().width/W,z=cam.
  Object.assign(e.style,{display:'block',left:(n.fx-cam.x)*z*k+W/2*k+'px',top:(n.fy-cam.y)*z*k+H/2*k+'px',width:Math.max(n.w*z*k,90)+'px',height:n.h*z*k+'px',font:n.fz*z*k+'px '+th().f});
  e.value=n.t;e.focus();e.select();e.onkeydown=v=>{v.stopPropagation();if(v.key==='Enter'){v.preventDefault();fin(1)}if(v.key==='Escape')fin(0)};e.onblur=()=>fin(1)}
 function fin(ok){const e=$('ed');if(e.style.display==='none')return;e.style.display='none';
- if(ok&&e.value.trim()&&e.value.trim()!==sel.t){snap();sel.t=e.value.trim();lay()}C.focus()}
+ if(ok&&e.value.trim()&&e.value.trim()!==sel.t){snap();sel.t=e.value.trim();sel.ed=1;lay()}C.focus()}
 function nav(k){const s=sel,p=par(s);let t;
  if(k==='arrowup'||k==='arrowdown'){if(p)t=p.c[p.c.indexOf(s)+(k==='arrowdown'?1:-1)]}
  else{const q=k==='arrowright'?1:-1;if(s===root){const c=vc(root),h=$('lyt').value==='bal'?Math.ceil(c.length/2):c.length;t=q>0?c[0]:c[h]}else t=s.d===q?vc(s)[0]:p}
@@ -185,13 +266,13 @@ document.addEventListener('keydown',e=>{if($('pad').open||/INPUT|TEXTAREA|SELECT
   else if(k==='+'||k==='='){pz*=1.15;if(pres>0&&!ov)foc()}else if(k==='-'){pz/=1.15;if(pres>0&&!ov)foc()}
   else if(k==='o'){ov=!ov;if(ov)fit();else if(pres>0)foc()}else if(k==='escape')exitP();else u=0}
  else if(k===' ')next();else if(k==='tab')add(0);else if(k==='enter')add(1);else if(k==='delete'||k==='backspace')del();
- else if(k==='f2')edit();else if(k==='c')tog();else if(k==='k')colr();else if(k==='f')fit();else if(k.startsWith('arrow'))nav(k);else u=0;
+ else if(k==='f2')edit();else if(k==='e')ex();else if(k==='c')tog();else if(k==='k')colr();else if(k==='f')fit();else if(k.startsWith('arrow'))nav(k);else u=0;
  if(u)e.preventDefault()});
-const A={bIm:()=>$('fIm').click(),bIx:()=>{if(sel.im){snap();sel.im=null;sel._g=null;lay()}},bDr:openPad,bAc:()=>add(0),bAs:()=>add(1),bDl:del,bCl:tog,bCo:colr,bUn:undo,bRe:redo,bFt:fit,bPr:()=>pres<0?startP():exitP(),
+const A={bEx:()=>ex(),bIm:()=>$('fIm').click(),bIx:()=>{if(sel.im){snap();sel.im=null;sel._g=null;lay()}},bDr:openPad,bAc:()=>add(0),bAs:()=>add(1),bDl:del,bCl:tog,bCo:colr,bUn:undo,bRe:redo,bFt:fit,bPr:()=>pres<0?startP():exitP(),
  bFs:()=>C.requestFullscreen&&C.requestFullscreen(),bRc:auto,bPg:()=>C.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='mindmap.png';a.click()})};
 for(const k in A)$(k).onclick=()=>{if(root||k==='bFs')A[k]();C.focus()};
 Object.keys(T).forEach(k=>$('thm').add(new Option(k,k)));
-$('thm').onchange=$('lyt').onchange=$('flt').onchange=()=>{if(root){lay();if(pres<0)fit()}};
+$('thm').onchange=$('lyt').onchange=$('flt').onchange=$('full').onchange=()=>{if(root){lay();if(pres<0)fit()}};
 const IM={},img=s=>IM[s]||(IM[s]=Object.assign(new Image(),{src:s}));
 function setImg(src){if(!root)return;const g=new Image();g.onload=()=>{const k=Math.min(1,320/Math.max(g.naturalWidth,g.naturalHeight)),c=document.createElement('canvas');
  c.width=Math.max(1,Math.round(g.naturalWidth*k));c.height=Math.max(1,Math.round(g.naturalHeight*k));c.getContext('2d').drawImage(g,0,0,c.width,c.height);
@@ -201,7 +282,7 @@ $('fIm').onchange=e=>{fileImg(e.target.files[0]);e.target.value=''};
 C.ondragover=e=>e.preventDefault();
 C.ondrop=e=>{e.preventDefault();const n=hit(pt(e));if(n)sel=n;fileImg(e.dataTransfer.files[0])};
 document.addEventListener('paste',e=>{if(/INPUT|TEXTAREA/.test(e.target.tagName)||!root)return;fileImg([...e.clipboardData.files][0])});
-const P=$('pcv'),Q=P.getContext('2d');let pe=false,pd=null,pu=[];
+const P=$('pcv'),Q=P.getContext('2d',{willReadFrequently:true});let pe=false,pd=null,pu=[];
 function pclr(){Q.fillStyle='#fff';Q.fillRect(0,0,P.width,P.height)}
 function psnap(){pu.push(Q.getImageData(0,0,P.width,P.height));if(pu.length>20)pu.shift()}
 function openPad(){if(!root)return;pclr();pu=[];pe=false;$('pE').textContent='지우개';
@@ -217,15 +298,29 @@ $('pU').onclick=()=>{if(pu.length)Q.putImageData(pu.pop(),0,0)};
 $('pX').onclick=()=>{psnap();pclr()};
 $('pOk').onclick=()=>{setImg(P.toDataURL('image/png'));$('pad').close()};
 $('pNo').onclick=()=>$('pad').close();
+function ex(){if(!sel||!sel.n||sel.n===sel.t)return;snap();sel.ex=!(sel.ex!=null?sel.ex:full());lay()}
+const esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function vlink(t){try{const u=new URL($('vurl').value.trim()),q=t.split(':').map(Number);u.searchParams.set('t',(q.length===3?q[0]*3600+q[1]*60+q[2]:q[0]*60+q[1])+'s');return u.href}catch(e){return ''}}
+function showDt(){const n=sel,d=$('dt');if(!n){d.innerHTML='';return}
+ let h='<b>'+esc(n.t)+'</b>';if(n.n&&n.n!==n.t&&!n.ed)h+='<p style="margin:6px 0">'+esc(n.n)+'</p>';
+ if(SRC&&n.si!=null){const a=Math.max(0,n.si-ctxN),b=Math.min(SRC.S.length,n.si+ctxN+1);h+='<div class="ctx">';
+  for(let i=a;i<b;i++)h+=i===n.si?'<mark>'+esc(SRC.S[i])+'</mark> ':esc(SRC.S[i])+' ';h+='</div>';
+  const t=SRC.tm&&SRC.tm[n.si],l=t&&vlink(t);if(t)h+='<span>⏱ '+esc(t)+(l?' · <a href="'+esc(l)+'" target="_blank" rel="noopener">영상에서 보기</a>':'')+'</span> ';
+  h+='<button class="g" id="more" style="padding:2px 8px">'+(ctxN>2?'앞뒤 줄이기':'앞뒤 더 보기')+'</button>'}
+ d.innerHTML=h}
+$('dt').onclick=e=>{if(e.target.id==='more'){ctxN=ctxN>2?2:8;showDt()}};$('vurl').oninput=showDt;
 let engine;
 async function aiMD(t){if(!navigator.gpu)throw new Error('WebGPU 미지원 브라우저');
- if(!engine){const w=await import('https://esm.run/@mlc-ai/web-llm');engine=await w.CreateMLCEngine('Qwen2.5-1.5B-Instruct-q4f16_1-MLC',{initProgressCallback:p=>$('st').textContent='모델 준비 중… '+(p.text||'')})}
+ if(!engine){const w=await import('https://esm.run/@mlc-ai/web-llm'),cfg={...w.prebuiltAppConfig,useIndexedDBCache:true};
+  for(const m of['Qwen2.5-1.5B-Instruct-q4f16_1-MLC','Qwen2.5-0.5B-Instruct-q4f16_1-MLC']){
+   try{engine=await w.CreateMLCEngine(m,{appConfig:cfg,initProgressCallback:p=>$('st').textContent='모델 준비 중('+m.split('-')[1]+')… '+(p.text||'')});break}catch(e){console.warn(e)}}
+  if(!engine)throw new Error('모델 다운로드 실패: 네트워크·방화벽·광고 차단 확장이 huggingface 다운로드를 막았을 수 있어요')}
  $('st').textContent='AI가 글을 정리하는 중…';
  const r=await engine.chat.completions.create({temperature:.2,messages:[{role:'system',content:'너는 글을 마인드맵용 마크다운 개요로 정리한다. 첫 줄은 "# 제목", 큰 갈래는 "## ", 그 아래 항목은 "### ", 세부 내용은 "- ". 모든 줄은 한국어 20자 이내의 짧은 구로 쓴다. 설명 없이 마크다운만 출력한다.'},{role:'user',content:t.slice(0,3000)}]});
  return r.choices[0].message.content.replace(/```\w*/g,'').trim()}
 $('bGo').onclick=async()=>{const t=$('inp').value.trim();if(!t){$('st').textContent='글을 먼저 붙여 넣어 주세요.';return}
  $('bGo').disabled=true;let r,note='규칙 기반으로 생성했어요.';
- try{if($('mode').value==='ai'){r=parse(await aiMD(t));note='AI 모델로 생성했어요.'}else r=parse(t)}catch(e){r=parse(t);note='AI를 쓸 수 없어 규칙 기반으로 생성했어요 ('+e.message+')'}
+ try{if($('mode').value==='ai'){r=parse(await aiMD(plain(t)));note='AI 모델로 생성했어요.'}else r=parse(t)}catch(e){r=parse(t);note='AI를 쓸 수 없어 규칙 기반으로 생성했어요 ('+e.message+')'}
  root=r;sel=root;hist=[];fut=[];pres=-1;ov=false;lay();fit();Object.assign(cam,tg);$('st').textContent=note;$('bGo').disabled=false};
 $('bSm').onclick=()=>{$('inp').value=SAMPLE;$('bGo').click()};
 $('inp').value=SAMPLE;$('bGo').click();
