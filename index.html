@@ -35,7 +35,7 @@ dialog{border:1px solid var(--bd);border-radius:10px;background:var(--cd);color:
 <script>
 //PARSE-START
 let SRC=null;
-const RS=/^(?:#+\s*)?(?:제?\s*[0-9Ⅰ-Ⅹ]+\s*[장절부.)]\s*)?(서\s?론|본\s?론|결\s?론|들어가며|들어가는\s?말|머리말|문제\s?제기|맺으며|맺는\s?말|맺음말|마치며|결어|요약)\s*(?:[:：\-–.)\]]\s*|$)(.*)$/;
+const RS=/^(?:#+\s*)?(?:제?\s*[0-9Ⅰ-Ⅹ]+\s*[장절부.)]\s*)?(서\s?론|본\s?론|결\s?론|들어가며|들어가는\s?말|머리말|문제\s?제기|맺으며|맺는\s?말|맺음말|마치며|결어|요약|주\s?문|이\s?유)\s*(?:[:：\-–.)\]]\s*|$)(.*)$/;
 const MH=/^(#{1,6})\s+(.+)$/,NH=/^(?:제\s?\d+\s?[장절부]|[Ⅰ-Ⅹ]+[.)])\s*(.+)$/;
 const BU=/^(\s*)([-*•·▪▶▷○●■□◆◇▸>]|\d+[.)]|\(\d+\)|[①-⑳]|[가-하][.)]|[A-Za-z][.)])\s+(.+)$/;
 const KEYS='첫째|둘째|셋째|넷째|다섯째|여섯째|(?:첫|두|세|네|다섯|여섯)\\s?번째|하나는|둘은|셋은|또\\s?하나는|먼저|우선|다음으로|이어서|그다음|마지막으로|끝으로|아울러|또한|무엇보다|first(?:ly)?|second(?:ly)?|third(?:ly)?|finally|lastly';
@@ -126,17 +126,19 @@ function topic(S,title,tm,paras,chs){SRC={S,tm};const N=S.length,T=S.map(toks),d
   node.c.push(...sub(g.a,g.b,ex));root.c.push(node)}
  return root}
 const CAP=/^(<\s*(?:표|그림|도|사진)\s*\d*\s*>|Box\.|\[Box\])/i,SRCL=/^(자료|출처|주|Source|Note)\s*[:：]/i,NOTE=/^[※＊*]\s*/;
-const NUMT=/^(\d{1,2})\.\s+(\S.{1,60})$/,SYM2=/^[◆■▶▷●◎★▣◈]\s*(.+)$/,CIRC=/^[①-⑳]\s*(.+)$/,KORD=/^[가-하]\.\s+(.+)$/,PARN=/^\(\d{1,2}\)\s+(.+)$/,PUA=/^[\uE000-\uF8FF]\s*(.+)$/,CIR3=/^[○◦◯□◇]\s*(.+)$/,DASH=/^[-–—•·▪▫‣▸]\s+(.+)$/,FOOT=/^\d{1,2}\)\s+(.+)$/;
+const NUMT=/^(\d{1,2})\.\s+(\S.{1,60})$/,SYM2=/^[◆■▶▷●◎★▣◈]\s*(.+)$/,CIRC=/^[①-⑳]\s*(.+)$/,KORD=/^[가-하]\.\s+(.+)$/,PARN=/^\(\d{1,2}\)\s+(.+)$/,PKOR=/^\([가-하]\)\s+(.+)$/,PUA=/^[\uE000-\uF8FF]\s*(.+)$/,CIR3=/^[○◦◯□◇]\s*(.+)$/,DASH=/^[-–—•·▪▫‣▸]\s+(.+)$/,FOOT=/^\d{1,2}\)\s+(.+)$/,BJ=/^\[(?:별지|부록|별첨|첨부)[^\]]*\]/;
+const isS=t=>(/[.。]$/.test(t)&&t.length>12)||(/[다요]$/.test(t)&&t.length>25)||t.length>75;
 const fr=t=>t.replace(/(?<=[가-힣A-Za-z])\d{1,2}\)(?=[가-힣\s.,;:]|$)/g,'');
 function cls(l){let m;
  if(CAP.test(l))return{k:'cap'};if(SRCL.test(l))return{k:'src'};
  if(m=l.match(NOTE))return{k:'a',text:l.slice(m[0].length)};
- if(m=l.match(RS))return{k:'h',rank:1,text:m[1].replace(/\s/g,''),extra:m[2]};
+ if(BJ.test(l))return{k:'h',rank:.9,text:l};
+ if(m=l.match(RS))return{k:'h',rank:/주\s?문|이\s?유/.test(m[1])?.8:1,text:/^\d/.test(l)?l.slice(0,l.length-(m[2]||'').length).trim():m[1].replace(/\s/g,''),extra:m[2],num:/^(\d{1,2})\./.test(l)?+l.match(/^(\d{1,2})\./)[1]:undefined};
  if(m=l.match(MH))return{k:'h',rank:1+(m[1].length-1)*.3,text:m[2]};
  if(m=l.match(NH))return{k:'h',rank:1,text:m[1]};
- if(m=l.match(NUMT))return /[.!?。]$|(다|요|음|함)$/.test(m[2])?{k:'b',rank:3.2,text:m[2]}:{k:'h',rank:1,text:m[2]};
- if(m=l.match(SYM2))return{k:'h',rank:2,text:m[1]};
- if(m=l.match(CIRC)||l.match(KORD)||l.match(PARN))return{k:'h',rank:2.5,text:m[1]};
+ if(m=l.match(NUMT))return /[.!?。]$/.test(m[2])||(/(다|요|음|함)$/.test(m[2])&&m[2].length>25)?{k:'b',rank:3.2,text:m[2],num:+m[1]}:{k:'h',rank:1,text:m[1]+'. '+m[2],num:+m[1]};
+ if(m=l.match(SYM2))return{k:'h',fam:'SYM',text:m[1],sent:isS(m[1])};
+ for(const[f,re]of[['KOR',KORD],['PAR',PARN],['PKO',PKOR],['CIR',CIRC]])if(m=l.match(re))return{k:'h',fam:f,text:isS(m[1])?m[1]:l,sent:isS(m[1])};
  if(m=l.match(PUA)||l.match(CIR3))return{k:'b',rank:3,text:m[1]};
  if(m=l.match(DASH))return{k:'b',rank:4,text:m[1]};
  if(m=l.match(FOOT))return m[1].length>35?{k:'foot'}:{k:'b',rank:3.4,text:m[1]};
@@ -150,20 +152,27 @@ function enumTree(ss,parent){let holder=parent,last=null,pend=false;const stk=[]
   else if(ld){if(pend)pop();const n2=mk(x);holder.c.push(n2);stk.push(holder);holder=n2;last=null}
   else(last||holder).c.push(mk(x))}}
 function docParse(L,root){
- let T=L.map(l=>l.replace(/[\u200b\ufeff]/g,'').trim());
+ let T=L.map(l=>l.replace(/[\u200b\ufeff]/g,'').replace(/\s{2,}/g,' ').trim().replace(/^((?:[가-힣] )+[가-힣])(?= |$)/,x=>x.replace(/ /g,'')));
  const ri=T.map((l,i)=>/^(참\s?고\s?문\s?헌|References|REFERENCES|Bibliography)$/.test(l)?i:-1).filter(i=>i>=0).pop();
  if(ri!==undefined&&ri>T.length*.6)T=T.slice(0,ri);
  T=T.filter(l=>!/^(참\s?고\s?문\s?헌|References)$/i.test(l));
- const cnt={};T.forEach(l=>{if(l&&l.length<=70)cnt[l]=(cnt[l]||0)+1});
- const seen=new Set();let title='',tc=3;
+ const ne=[];T.forEach((l,i)=>{if(l)ne.push(i)});const pg=l=>/^\d{1,3}$/.test(l),cnt={},adj={};
+ ne.forEach((i,k)=>{const l=T[i];if(l.length>70||pg(l))return;cnt[l]=(cnt[l]||0)+1;if((k>0&&pg(T[ne[k-1]]))||(k<ne.length-1&&pg(T[ne[k+1]])))adj[l]=(adj[l]||0)+1});
+ const fur=l=>(cnt[l]||0)>=3&&(adj[l]||0)>=cnt[l]*.6,seen=new Set();let title='',tc=3;
  T=T.filter(l=>{if(!l)return true;if(/^[\d\s.\-]+$/.test(l))return false;
-  if((cnt[l]||0)>=3){if(cls(l).k==='h'){if(seen.has(l))return false;seen.add(l);return true}if(cnt[l]>tc&&l.length>=10){tc=cnt[l];title=l}return false}return true});
+  if(fur(l)){if(cls(l).k==='h'){if(seen.has(l))return false;seen.add(l);return true}if(cnt[l]>tc&&l.length>=10){tc=cnt[l];title=l}return false}return true});
  const lens=T.filter(l=>l.length>15).map(l=>l.length).sort((a,b)=>a-b),p95=lens[Math.floor(lens.length*.95)]||0;
  const hard=lens.length>25&&p95<=110&&lens.filter(n=>n>=p95*.75&&n<=p95*1.03).length>=lens.length*.35;
- if(hard){const o=[];let pf=false;for(const l of T){if(!l){o.push('');pf=false;continue}
-   if(o.length&&o[o.length-1]&&pf&&cls(l).k==='p')o[o.length-1]+=' '+l;else o.push(l);pf=l.length>=p95*.78}T=o}
- const it=[],fullW=hard?p95*.9:60;let skip=false;
- for(const l of T){if(!l)continue;const c=cls(l);
+ const o=[];
+ if(hard){let pf=false;for(const l of T){if(!l){o.push('');pf=false;continue}
+   if(o.length&&o[o.length-1]&&pf&&cls(l).k==='p')o[o.length-1]+=' '+l;else o.push(l);pf=l.length>=p95*.78}}
+ else for(const l of T){const pv=o.length?o[o.length-1]:'';
+   if(pv&&l){const cp=cls(pv),cc=cls(l);if(cc.k==='p'&&(cp.k==='p'||cp.k==='b'||(cp.k==='h'&&cp.sent))&&pv.length>=60&&!/[.?!。”’)」』\]]$/.test(pv)){o[o.length-1]+=' '+l;continue}}
+   o.push(l)}
+ T=o;
+ const it=[],fullW=hard?p95*.85:60;let skip=false,lastN=0;
+ for(const l of T){if(!l)continue;let c=cls(l);
+  if(c.num!=null){if(c.num===1||(c.num>lastN&&c.num<=lastN+3))lastN=c.num;else c={k:'p',rank:3,text:l}}
   if(c.k==='cap'){skip=true;continue}
   if(skip){if(c.k==='src'){skip=false;continue}if(c.k==='h'||l.length>=fullW)skip=false;else continue}
   if(c.k==='src'||c.k==='foot')continue;
@@ -174,17 +183,21 @@ function docParse(L,root){
  const top=()=>stack[stack.length-1],popTo=r=>{while(stack.length>1&&top().rank>=r)stack.pop()};
  const add=(r,n)=>{popTo(r);top().node.c.push(n);stack.push({rank:r,node:n})};
  const flushPre=()=>{if(!seenH){seenH=true;if(sec0.c.length)root.c.push(sec0);stack=[{rank:0,node:root}]}};
- const hd=x=>({t:x.length>40?x.slice(0,39)+'…':x,n:x,c:[]});
+ const fam={},rk=f=>{if(fam[f]==null){let b=0;for(let k=stack.length-1;k>0;k--)if(stack[k].rank<3){b=stack[k].rank;break}fam[f]=Math.max(b,1)+.1}return fam[f]};
+ const hd=x=>({t:x.length>46?x.slice(0,45)+'…':x,n:x,c:[]});
+ const mkB=t=>{const ss=sn(t).flatMap(sp),n=mk(ss[0]||t);n.n=t;ss.slice(1,4).forEach(x=>n.c.push(mk(x)));return n};
  for(let i=0;i<it.length;i++){const q=it[i];
-  if(q.k==='h'){flushPre();add(q.rank,hd(q.text));continue}
+  if(q.k==='h'){flushPre();add(q.fam?rk(q.fam):q.rank,q.sent?mkB(q.text):hd(q.text));continue}
   if(q.k==='a'){const nd=top().node;nd.x=(nd.x?nd.x+'\n':'')+q.text;continue}
-  if(q.k==='b'){const ss=sn(q.text).flatMap(sp),n=mk(ss[0]||q.text);n.n=q.text;ss.slice(1,4).forEach(x=>n.c.push(mk(x)));add(q.rank,n);continue}
+  if(q.k==='b'){add(q.rank,mkB(q.text));continue}
   let j=i;const run=[];while(j<it.length&&it[j].k==='p'){run.push(it[j].text);j++}i=j-1;
   const ss=run.flatMap(t=>sn(clean(t))).flatMap(sp).filter(x=>x.length>3);
   if(ss.filter(x=>EN.test(x)).length>=2){popTo(3);enumTree(ss,top().node)}
   else run.forEach(t=>{const s1=sn(clean(t)).flatMap(sp).filter(x=>x.length>3);if(!s1.length)return;const n=mk(s1[0]);n.n=t;s1.slice(1,4).forEach(x=>n.c.push(mk(x)));add(3,n)})}
  if(!seenH)root.c.push(...sec0.c);
- const cn=n=>1+n.c.reduce((a,c)=>a+cn(c),0),tot=cn(root),cl2=(n,d)=>{if(tot>150&&n.c.length&&d>=(tot>500?2:3))n.col=true;n.c.forEach(c=>cl2(c,d+1))};
+ const per=[];(function w(n,d){per[d]=(per[d]||0)+1;n.c.forEach(c=>w(c,d+1))})(root,0);
+ const tot=per.reduce((a,b)=>a+b,0);let L2=2,cum=0;for(let d=0;d<per.length;d++){cum+=per[d];if(cum<=150)L2=Math.max(2,d+1);else break}
+ const cl2=(n,d)=>{if(tot>150&&n.c.length&&d>=L2)n.col=true;n.c.forEach(c=>cl2(c,d+1))};
  root.t=title||root.t;cl2(root,0);return root}
 function parse(raw){
  const L=raw.replace(/\r/g,'').split('\n'),root={t:'글 요약',c:[]};let i=0;SRC=null;
