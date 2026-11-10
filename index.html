@@ -25,11 +25,11 @@ dialog{border:1px solid var(--bd);border-radius:10px;background:var(--cd);color:
 <select id="thm" aria-label="디자인"></select>
 <select id="lyt" aria-label="배치"><option value="bal">좌우 균형</option><option value="r">오른쪽으로</option></select>
 <label><input type="checkbox" id="flt"> 플로팅(자유 배치)</label><label><input type="checkbox" id="full"> 전체 문장 펼치기</label><button id="bEx" class="g">선택 문장 펼치기/접기</button><label>영상 주소 <input id="vurl" placeholder="유튜브 주소(선택)" style="width:210px"></label>
-<button id="bAc" class="g">자식 +</button><button id="bAs" class="g">형제 +</button><button id="bDl" class="g">삭제</button><button id="bCl" class="g">접기/펴기</button><button id="bCo" class="g">색 바꾸기</button><button id="bUn" class="g">↶</button><button id="bRe" class="g">↷</button><button id="bFt" class="g">맞춤</button><button id="bPg" class="g">PNG</button><button id="bIm" class="g">이미지 첨부</button><button id="bDr" class="g">그림 그리기</button><button id="bIx" class="g">이미지 제거</button><input type="file" id="fIm" accept="image/*" hidden>
+<button id="bAc" class="g">자식 +</button><button id="bAs" class="g">형제 +</button><button id="bDl" class="g">삭제</button><button id="bCl" class="g">접기/펴기</button><button id="bCo" class="g">색 바꾸기</button><button id="bUn" class="g">↶</button><button id="bRe" class="g">↷</button><button id="bFt" class="g">맞춤</button><button id="bPg" class="g">PNG</button><button id="bSv">저장</button><button id="bLd" class="g">열기</button><input type="file" id="fLd" accept=".json,.mindmap" hidden><select id="xf" aria-label="내보내기 형식"><option value="opml">OPML (범용 개요)</option><option value="mm">FreeMind/Freeplane (.mm)</option><option value="md">마크다운 개요</option></select><button id="bXp" class="g">내보내기</button><button id="bIm" class="g">이미지 첨부</button><button id="bDr" class="g">그림 그리기</button><button id="bIx" class="g">이미지 제거</button><input type="file" id="fIm" accept="image/*" hidden>
 </div><div class="r" style="margin:0 0 8px"><button id="bPr">발표</button><button id="bFs" class="g">전체화면</button>
 <button id="bRc">MP4 자동 녹화</button><label>단계당 <input id="sec" type="number" min="1" max="30" value="3"> 초</label></div>
 <div id="w"><canvas id="cv" tabindex="0"></canvas><input id="ed"></div><div id="dt" aria-live="polite" style="font-size:13px;margin-top:10px"></div>
-<p class="h"><b>편집</b> 클릭 선택(아래에 전체 문장·원문 앞뒤·영상 시각 링크 표시) · 더블클릭/F2 이름 수정 · Tab 자식 · Enter 형제 · Delete 삭제 · C 접기 · E 문장 펼치기(생략된 문장 전체 보기) · K 색 · 방향키 이동 · 배경 드래그 이동 · 휠 확대 · Ctrl+Z/Y · 노드를 다른 노드 위에 놓으면 부모 변경(플로팅 끄기), 플로팅 켜면 자유 이동<br>
+<p class="h"><b>편집</b> 클릭 선택(아래에 전체 문장·원문 앞뒤·영상 시각 링크 표시) · 더블클릭/F2 이름 수정 · Tab 자식 · Enter 형제 · Delete 삭제 · C 접기 · E 문장 펼치기(생략된 문장 전체 보기) · K 색 · 방향키 이동 · 배경 드래그 이동 · 휠 확대 · Ctrl+Z/Y · Ctrl+S 저장 · 노드를 다른 노드 위에 놓으면 부모 변경(플로팅 끄기), 플로팅 켜면 자유 이동<br>
 <b>발표</b> Space 시작/다음 · N/→ 다음 · P/← 이전 · +/− 확대·축소 · O 전체 보기 · R 녹화 시작/종료 · Esc 종료<br><b>이미지</b> 노드 선택 후 '이미지 첨부'(파일 끌어다 놓기·붙여넣기도 가능) 또는 '그림 그리기'로 패드 열기 · 이미 있는 이미지는 패드에서 이어 그릴 수 있어요</p></div>
 <dialog id="pad"><div class="r" style="margin:0 0 8px"><input type="color" id="pc" value="#222222" aria-label="색"><label>굵기 <input type="range" id="ps" min="1" max="40" value="4"></label><button id="pE" class="g">지우개</button><button id="pU" class="g">되돌리기</button><button id="pX" class="g">전체 지우기</button></div><canvas id="pcv" width="480" height="360"></canvas><div class="r"><button id="pOk">노드에 넣기</button><button id="pNo" class="g">취소</button></div></dialog></main>
 <script>
@@ -260,6 +260,7 @@ async function auto(){if(!rec(true))return;cancel=false;const s=(+$('sec').value
  if(mr&&!cancel){ov=true;fit();await z(1500)}if(mr)rec(false);if(!cancel)exitP()}
 document.addEventListener('keydown',e=>{if($('pad').open||/INPUT|TEXTAREA|SELECT|BUTTON/.test(e.target.tagName))return;const k=e.key.toLowerCase(),M=e.ctrlKey||e.metaKey;
  if(M&&(k==='z'||k==='y')){(k==='y'||e.shiftKey?redo:undo)();e.preventDefault();return}
+ if(M&&k==='s'){e.preventDefault();if(root)saveMap();return}
  if(!root)return;let u=1;
  if(k==='r')mr?rec(false):rec(true);
  else if(pres>=0){if(' n arrowright pagedown enter'.split(' ').includes(k)||k===' ')next();else if(['p','arrowleft','pageup','backspace'].includes(k))prev();
@@ -268,7 +269,7 @@ document.addEventListener('keydown',e=>{if($('pad').open||/INPUT|TEXTAREA|SELECT
  else if(k===' ')next();else if(k==='tab')add(0);else if(k==='enter')add(1);else if(k==='delete'||k==='backspace')del();
  else if(k==='f2')edit();else if(k==='e')ex();else if(k==='c')tog();else if(k==='k')colr();else if(k==='f')fit();else if(k.startsWith('arrow'))nav(k);else u=0;
  if(u)e.preventDefault()});
-const A={bEx:()=>ex(),bIm:()=>$('fIm').click(),bIx:()=>{if(sel.im){snap();sel.im=null;sel._g=null;lay()}},bDr:openPad,bAc:()=>add(0),bAs:()=>add(1),bDl:del,bCl:tog,bCo:colr,bUn:undo,bRe:redo,bFt:fit,bPr:()=>pres<0?startP():exitP(),
+const A={bSv:()=>saveMap(),bLd:()=>$('fLd').click(),bXp:()=>exportMap(),bEx:()=>ex(),bIm:()=>$('fIm').click(),bIx:()=>{if(sel.im){snap();sel.im=null;sel._g=null;lay()}},bDr:openPad,bAc:()=>add(0),bAs:()=>add(1),bDl:del,bCl:tog,bCo:colr,bUn:undo,bRe:redo,bFt:fit,bPr:()=>pres<0?startP():exitP(),
  bFs:()=>C.requestFullscreen&&C.requestFullscreen(),bRc:auto,bPg:()=>C.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='mindmap.png';a.click()})};
 for(const k in A)$(k).onclick=()=>{if(root||k==='bFs')A[k]();C.focus()};
 Object.keys(T).forEach(k=>$('thm').add(new Option(k,k)));
@@ -309,6 +310,22 @@ function showDt(){const n=sel,d=$('dt');if(!n){d.innerHTML='';return}
   h+='<button class="g" id="more" style="padding:2px 8px">'+(ctxN>2?'앞뒤 줄이기':'앞뒤 더 보기')+'</button>'}
  d.innerHTML=h}
 $('dt').onclick=e=>{if(e.target.id==='more'){ctxN=ctxN>2?2:8;showDt()}};$('vurl').oninput=showDt;
+const fname=()=>(root.t||'mindmap').replace(/[\\/:*?"<>|\s·]+/g,'_').slice(0,30);
+function dl(n,t,m){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:m}));a.download=n;a.click()}
+function saveMap(){if(!root)return;dl(fname()+'.mindmap.json',JSON.stringify({app:'text-mindmap',v:1,theme:$('thm').value,layout:$('lyt').value,floating:fl(),full:full(),video:$('vurl').value,src:SRC,root:ser(root)}),'application/json');$('st').textContent='저장했어요: '+fname()+'.mindmap.json'}
+function loadMap(f){const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(o.app!=='text-mindmap'||!o.root)throw 0;
+ const fix=n=>{n.c=n.c||[];n.c.forEach(fix);return n};root=fix(o.root);SRC=o.src||null;if(T[o.theme])$('thm').value=o.theme;$('lyt').value=o.layout||'bal';
+ $('flt').checked=!!o.floating;$('full').checked=!!o.full;$('vurl').value=o.video||'';sel=root;hist=[];fut=[];pres=-1;ov=false;lastSel=null;lay();fit();Object.assign(cam,tg);$('st').textContent='불러왔어요: '+f.name}
+ catch(e){$('st').textContent='열 수 없는 파일이에요(이 앱에서 저장한 .mindmap.json이 아님).'}};r.readAsText(f)}
+$('fLd').onchange=e=>{if(e.target.files[0])loadMap(e.target.files[0]);e.target.value=''};
+const nt=n=>n.n&&n.n!==n.t&&!n.ed?n.n:'';
+const X1=n=>{const o='<outline text="'+esc(n.t)+'"'+(nt(n)?' _note="'+esc(nt(n))+'"':'');return n.c.length?o+'>'+n.c.map(X1).join('')+'</outline>':o+'/>'};
+const X2=(n,top)=>'<node TEXT="'+esc(n.t)+'"'+(n.col?' FOLDED="true"':'')+(top?(n.d<0?' POSITION="left"':' POSITION="right"'):'')+'>'+(nt(n)?'<richcontent TYPE="NOTE"><html><head/><body><p>'+esc(nt(n))+'</p></body></html></richcontent>':'')+n.c.map(c=>X2(c,n===root)).join('')+'</node>';
+const X3=(n,d)=>(d?'  '.repeat(d-1)+'- ':'# ')+n.t+'\n'+n.c.map(c=>X3(c,d+1)).join('');
+function exportMap(){if(!root)return;lay();const f=$('xf').value,h='<?xml version="1.0" encoding="UTF-8"?>\n';
+ if(f==='opml')dl(fname()+'.opml',h+'<opml version="2.0"><head><title>'+esc(root.t)+'</title></head><body>'+X1(root)+'</body></opml>','text/x-opml');
+ else if(f==='mm')dl(fname()+'.mm',h+'<map version="1.0.1">'+X2(root,false)+'</map>','application/xml');
+ else dl(fname()+'.md',X3(root,0),'text/markdown');$('st').textContent='내보냈어요 ('+f+') · 이미지·좌표·색은 포함되지 않아요'}
 let engine;
 async function aiMD(t){if(!navigator.gpu)throw new Error('WebGPU 미지원 브라우저');
  if(!engine){const w=await import('https://esm.run/@mlc-ai/web-llm'),cfg={...w.prebuiltAppConfig,useIndexedDBCache:true};
