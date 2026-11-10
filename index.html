@@ -43,10 +43,10 @@ const EN=new RegExp('^('+KEYS+')[로는은이가]?(?=[\\s,:：]|$)[\\s,:：]*','
 const CN=/^(그러나|하지만|그런데|그리고|따라서|그래서|그러므로|즉|결국|특히|게다가|예를 들어|예컨대|요컨대|결론적으로|요약하면|이처럼|이렇듯|물론|다만|그러면은?|그럼|근데|그렇다면|그렇듯이|사실|제가|저는|내가|여러분들?|우리는|그럼이?|이게|그게)[\s,]+/;
 const sn=t=>t.replace(/\s+/g,' ').trim().split(/(?<=[가-힣a-zA-Z)\]"'”’][.!?。])\s+/).filter(Boolean);
 function lab(s,n=24){s=s.trim().replace(EN,'').replace(CN,'').replace(/^["“'‘(\[]+|["”'’)\]]+$/g,'').replace(/[‘’“”]/g,'').replace(/[.!?。…]+$/,'').trim();
- const m=s.match(/^(.{8,26}?)(?:\s*[,，;；]|\s(?:그리고|하지만|그러나|그래서)\s|(?:는데|지만|으며|면서|이며|이고|해서|하여|하며|인데)\s)/);if(m)s=m[1];
+ const m=s.match(/^(.{14,28}?)(?:\s*[,，;；]|\s(?:그리고|하지만|그러나|그래서)\s|(?:는데|지만|으며|면서|이며|이고|해서|하여|하며|인데)\s)/);if(m)s=m[1];
  s=s.replace(/\s?(?:는|라는|다는|이라는)?\s?(?:거예요|거죠|겁니다|것입니다|것이에요|거야)$/,'').replace(/\s?(입니다|것이다|이다)$/,'').replace(/(?<=[가-힣]{3})(?:죠|네요|예요|에요|어요|아요|세요|해요|돼요)$/,'');
  if(s.length>n){const k=s.lastIndexOf(' ',n-2);s=s.slice(0,k>8?k:n-1)+'…'}return s||'…'}
-function mk(s){s=s.replace(EN,'');const m=s.match(/^([^:：]{2,16})[:：]\s*(.{6,})$/);
+function mk(s){s=s.replace(EN,'');const g=s.match(/^\(([^)]{2,16})\)\s*(.{4,})$/);if(g)return{t:g[1].trim(),n:s,c:[{t:lab(g[2]),n:g[2],c:[]}]};const m=s.match(/^([^:：]{2,16})[:：]\s*(.{6,})$/);
  if(m)return{t:m[1].trim(),n:s,c:[{t:lab(m[2]),n:m[2],c:[]}]};return{t:lab(s),n:s,c:[]}}
 const TS=/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(?:\d+분)?\s*(?:\d+초)?\s*/,GR=/감사합니다|안녕하세요|구독|좋아요|알림 설정|댓글|아시겠|그렇죠|그렇잖아|생각해 보셨|보셨나요|맞죠/;
 const clean=s=>s.replace(/(^|\s)(어+|음+|뭐|자|아)(?=[\s,]|$),?/g,' ').replace(/\s+/g,' ').trim();
@@ -125,9 +125,71 @@ function topic(S,title,tm,paras,chs){SRC={S,tm};const N=S.length,T=S.map(toks),d
   if(h>=0)ex.add(h);if(g.title&&h>=0)node.c.push({si:h,t:hl(h),n:S[h],c:[]});
   node.c.push(...sub(g.a,g.b,ex));root.c.push(node)}
  return root}
+const CAP=/^(<\s*(?:표|그림|도|사진)\s*\d*\s*>|Box\.|\[Box\])/i,SRCL=/^(자료|출처|주|Source|Note)\s*[:：]/i,NOTE=/^[※＊*]\s*/;
+const NUMT=/^(\d{1,2})\.\s+(\S.{1,60})$/,SYM2=/^[◆■▶▷●◎★▣◈]\s*(.+)$/,CIRC=/^[①-⑳]\s*(.+)$/,KORD=/^[가-하]\.\s+(.+)$/,PARN=/^\(\d{1,2}\)\s+(.+)$/,PUA=/^[\uE000-\uF8FF]\s*(.+)$/,CIR3=/^[○◦◯□◇]\s*(.+)$/,DASH=/^[-–—•·▪▫‣▸]\s+(.+)$/,FOOT=/^\d{1,2}\)\s+(.+)$/;
+const fr=t=>t.replace(/(?<=[가-힣A-Za-z])\d{1,2}\)(?=[가-힣\s.,;:]|$)/g,'');
+function cls(l){let m;
+ if(CAP.test(l))return{k:'cap'};if(SRCL.test(l))return{k:'src'};
+ if(m=l.match(NOTE))return{k:'a',text:l.slice(m[0].length)};
+ if(m=l.match(RS))return{k:'h',rank:1,text:m[1].replace(/\s/g,''),extra:m[2]};
+ if(m=l.match(MH))return{k:'h',rank:1+(m[1].length-1)*.3,text:m[2]};
+ if(m=l.match(NH))return{k:'h',rank:1,text:m[1]};
+ if(m=l.match(NUMT))return /[.!?。]$|(다|요|음|함)$/.test(m[2])?{k:'b',rank:3.2,text:m[2]}:{k:'h',rank:1,text:m[2]};
+ if(m=l.match(SYM2))return{k:'h',rank:2,text:m[1]};
+ if(m=l.match(CIRC)||l.match(KORD)||l.match(PARN))return{k:'h',rank:2.5,text:m[1]};
+ if(m=l.match(PUA)||l.match(CIR3))return{k:'b',rank:3,text:m[1]};
+ if(m=l.match(DASH))return{k:'b',rank:4,text:m[1]};
+ if(m=l.match(FOOT))return m[1].length>35?{k:'foot'}:{k:'b',rank:3.4,text:m[1]};
+ return{k:'p',rank:3,text:l}}
+const LEAD=/다음과 같|아래와 같|이하와 같|[:：]$|주요 내용은/,FIN=/^(마지막으로|끝으로|마지막|finally|lastly)/i;
+function enumTree(ss,parent){let holder=parent,last=null,pend=false;const stk=[];
+ const pop=()=>{holder=stk.pop()||parent;pend=false;last=null};
+ for(const x of ss){const en=EN.test(x),ld=LEAD.test(x);
+  if(en){if(pend)pop();const it=mk(x);holder.c.push(it);last=it;
+   if(ld){stk.push(holder);holder=it;last=null}else if(FIN.test(x)&&stk.length)pend=true}
+  else if(ld){if(pend)pop();const n2=mk(x);holder.c.push(n2);stk.push(holder);holder=n2;last=null}
+  else(last||holder).c.push(mk(x))}}
+function docParse(L,root){
+ let T=L.map(l=>l.replace(/[\u200b\ufeff]/g,'').trim());
+ const ri=T.map((l,i)=>/^(참\s?고\s?문\s?헌|References|REFERENCES|Bibliography)$/.test(l)?i:-1).filter(i=>i>=0).pop();
+ if(ri!==undefined&&ri>T.length*.6)T=T.slice(0,ri);
+ T=T.filter(l=>!/^(참\s?고\s?문\s?헌|References)$/i.test(l));
+ const cnt={};T.forEach(l=>{if(l&&l.length<=70)cnt[l]=(cnt[l]||0)+1});
+ const seen=new Set();let title='',tc=3;
+ T=T.filter(l=>{if(!l)return true;if(/^[\d\s.\-]+$/.test(l))return false;
+  if((cnt[l]||0)>=3){if(cls(l).k==='h'){if(seen.has(l))return false;seen.add(l);return true}if(cnt[l]>tc&&l.length>=10){tc=cnt[l];title=l}return false}return true});
+ const lens=T.filter(l=>l.length>15).map(l=>l.length).sort((a,b)=>a-b),p95=lens[Math.floor(lens.length*.95)]||0;
+ const hard=lens.length>25&&p95<=110&&lens.filter(n=>n>=p95*.75&&n<=p95*1.03).length>=lens.length*.35;
+ if(hard){const o=[];let pf=false;for(const l of T){if(!l){o.push('');pf=false;continue}
+   if(o.length&&o[o.length-1]&&pf&&cls(l).k==='p')o[o.length-1]+=' '+l;else o.push(l);pf=l.length>=p95*.78}T=o}
+ const it=[],fullW=hard?p95*.9:60;let skip=false;
+ for(const l of T){if(!l)continue;const c=cls(l);
+  if(c.k==='cap'){skip=true;continue}
+  if(skip){if(c.k==='src'){skip=false;continue}if(c.k==='h'||l.length>=fullW)skip=false;else continue}
+  if(c.k==='src'||c.k==='foot')continue;
+  it.push(c.k==='h'||c.k==='a'?c:{...c,text:fr(c.text||l)});if(c.extra)it.push({k:'p',rank:3,text:c.extra})}
+ if(it.filter(x=>x.k==='h'||x.k==='b').length<4)return null;
+ if(!title&&it[0]&&it[0].k==='p'&&it[0].text.length<=45&&!/[.!?。다요]$/.test(it[0].text))title=it.shift().text;
+ const sec0={t:'서두 요약',c:[]};let stack=[{rank:0,node:sec0}],seenH=false;
+ const top=()=>stack[stack.length-1],popTo=r=>{while(stack.length>1&&top().rank>=r)stack.pop()};
+ const add=(r,n)=>{popTo(r);top().node.c.push(n);stack.push({rank:r,node:n})};
+ const flushPre=()=>{if(!seenH){seenH=true;if(sec0.c.length)root.c.push(sec0);stack=[{rank:0,node:root}]}};
+ const hd=x=>({t:x.length>40?x.slice(0,39)+'…':x,n:x,c:[]});
+ for(let i=0;i<it.length;i++){const q=it[i];
+  if(q.k==='h'){flushPre();add(q.rank,hd(q.text));continue}
+  if(q.k==='a'){const nd=top().node;nd.x=(nd.x?nd.x+'\n':'')+q.text;continue}
+  if(q.k==='b'){const ss=sn(q.text).flatMap(sp),n=mk(ss[0]||q.text);n.n=q.text;ss.slice(1,4).forEach(x=>n.c.push(mk(x)));add(q.rank,n);continue}
+  let j=i;const run=[];while(j<it.length&&it[j].k==='p'){run.push(it[j].text);j++}i=j-1;
+  const ss=run.flatMap(t=>sn(clean(t))).flatMap(sp).filter(x=>x.length>3);
+  if(ss.filter(x=>EN.test(x)).length>=2){popTo(3);enumTree(ss,top().node)}
+  else run.forEach(t=>{const s1=sn(clean(t)).flatMap(sp).filter(x=>x.length>3);if(!s1.length)return;const n=mk(s1[0]);n.n=t;s1.slice(1,4).forEach(x=>n.c.push(mk(x)));add(3,n)})}
+ if(!seenH)root.c.push(...sec0.c);
+ const cn=n=>1+n.c.reduce((a,c)=>a+cn(c),0),tot=cn(root),cl2=(n,d)=>{if(tot>150&&n.c.length&&d>=(tot>500?2:3))n.col=true;n.c.forEach(c=>cl2(c,d+1))};
+ root.t=title||root.t;cl2(root,0);return root}
 function parse(raw){
  const L=raw.replace(/\r/g,'').split('\n'),root={t:'글 요약',c:[]};let i=0;SRC=null;
  if(trL(L)){const q=tstream(L);if(q.S.length>=10)return topic(q.S,'',q.tm,null,q.chs)}
+ const dp=docParse(L,root);if(dp)return dp;
  while(i<L.length&&!L[i].trim())i++;const f=(L[i]||'').trim();
  if(f&&f.length<=45&&!/[.!?。다요]$/.test(f)&&!RS.test(f)&&!BU.test(L[i])&&!/^#{2,}\s/.test(f)&&!NH.test(f)){root.t=f.replace(/^#\s+/,'');i++}
  const B=[];let para=null;const NE=L.map(l=>l.trim()).filter(l=>l&&!RS.test(l)&&!MH.test(l)&&!NH.test(l)&&!BU.test(l)),lm=NE.length>=4&&!L.some(l=>RS.test(l.trim())||MH.test(l.trim()))&&NE.filter(l=>/[.!?。”’"'…]$/.test(l)).length>=NE.length*.85;const fl=()=>{if(para){B.push({k:'p',x:para.join(' ')});para=null}};
@@ -209,7 +271,7 @@ function draw(){const S=th();X.setTransform(1,0,0,1,0,0);X.globalAlpha=1;X.fillS
    const h=l.length*32+24;X.fillStyle='rgba(0,0,0,.65)';X.fillRect(0,H-h-16,W,h+16);X.fillStyle='#fff';l.forEach((s,i)=>X.fillText(s,60,H-h+12+i*32))}}}
 (function loop(){requestAnimationFrame(loop);for(const k of['x','y','z'])cam[k]+=(tg[k]-cam[k])*.14;if(root){draw();if(sel!==lastSel){lastSel=sel;showDt()}}})();
 function snap(){hist.push(JSON.stringify(ser(root)));if(hist.length>30)hist.shift();fut=[]}
-const ser=n=>({t:n.t,n:n.n,col:n.col,ox:n.ox,oy:n.oy,kk:n.kk,si:n.si,ed:n.ed,ex:n.ex,im:n.im,iw:n.iw,ih:n.ih,c:n.c.map(ser)});
+const ser=n=>({t:n.t,n:n.n,col:n.col,ox:n.ox,oy:n.oy,kk:n.kk,x:n.x,si:n.si,ed:n.ed,ex:n.ex,im:n.im,iw:n.iw,ih:n.ih,c:n.c.map(ser)});
 function undo(){if(hist.length){fut.push(JSON.stringify(ser(root)));root=JSON.parse(hist.pop());sel=root;lay()}}
 function redo(){if(fut.length){hist.push(JSON.stringify(ser(root)));root=JSON.parse(fut.pop());sel=root;lay()}}
 function add(sib){snap();let p=sel,i;if(sib&&sel!==root){p=par(sel);i=p.c.indexOf(sel)+1}else{sel.col=false;i=sel.c.length}
@@ -304,6 +366,7 @@ const esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 function vlink(t){try{const u=new URL($('vurl').value.trim()),q=t.split(':').map(Number);u.searchParams.set('t',(q.length===3?q[0]*3600+q[1]*60+q[2]:q[0]*60+q[1])+'s');return u.href}catch(e){return ''}}
 function showDt(){const n=sel,d=$('dt');if(!n){d.innerHTML='';return}
  let h='<b>'+esc(n.t)+'</b>';if(n.n&&n.n!==n.t&&!n.ed)h+='<p style="margin:6px 0">'+esc(n.n)+'</p>';
+ if(n.x)h+='<p class="ctx">※ '+esc(n.x).replace(/\n/g,'<br>※ ')+'</p>';
  if(SRC&&n.si!=null){const a=Math.max(0,n.si-ctxN),b=Math.min(SRC.S.length,n.si+ctxN+1);h+='<div class="ctx">';
   for(let i=a;i<b;i++)h+=i===n.si?'<mark>'+esc(SRC.S[i])+'</mark> ':esc(SRC.S[i])+' ';h+='</div>';
   const t=SRC.tm&&SRC.tm[n.si],l=t&&vlink(t);if(t)h+='<span>⏱ '+esc(t)+(l?' · <a href="'+esc(l)+'" target="_blank" rel="noopener">영상에서 보기</a>':'')+'</span> ';
