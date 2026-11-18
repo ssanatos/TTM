@@ -19,11 +19,12 @@ dialog{border:1px solid var(--bd);border-radius:10px;background:var(--cd);color:
 </style></head><body><main>
 <h1>글을 마인드맵으로</h1>
 <div class="cd"><textarea id="inp" placeholder="글 또는 들여쓰기·번호가 있는 개요를 붙여 넣으세요"></textarea>
-<div class="r"><input id="about" placeholder="이 글은 무엇에 대한 내용인가요? (선택) 예: 벨기에 신앙고백 제3조 '성경의 영감' 설교" style="flex:1;min-width:260px"></div>
-<textarea id="tops" style="min-height:64px;margin-top:8px" placeholder="큰 주제를 글의 순서대로 한 줄에 하나씩 (선택, 2개 이상이면 이 주제들로 글을 나눠요)&#10;예)&#10;자연과 우주 속 신의 존재&#10;우상 숭배와 산당&#10;성경의 영감설"></textarea>
-<div class="r"><select id="mode" aria-label="정리 방식"><option value="rule">규칙 기반</option><option value="ai">브라우저 AI 모델 (첫 실행 시 모델 다운로드)</option></select>
+<div class="r"><input id="about" placeholder="이 글은 무엇에 대한 내용인가요? (선택) 예: 물리학자가 비트코인 가격을 몇 법칙(거듭제곱 법칙)으로 설명하는 강연 해설" style="flex:1;min-width:260px"></div>
+<textarea id="tops" style="min-height:64px;margin-top:8px" placeholder="큰 주제를 글의 순서대로 한 줄에 하나씩 (선택, 2개 이상이면 이 주제들로 글을 나눠요)&#10;예)&#10;비트코인은 거품이 아니다&#10;몇 법칙과 로그 직선&#10;가격의 바닥(1시그마)&#10;도시와 기업의 성장 비교&#10;8년 뒤 100만 달러 예측"></textarea>
+<div class="r"><select id="mode" aria-label="정리 방식"><option value="rule">규칙 기반</option><option value="ai">브라우저 AI 모델 (첫 실행 시 모델 다운로드)</option></select><select id="msrc" aria-label="모델 서버"><option value="hf">모델 서버: Hugging Face</option><option value="mirror">모델 서버: hf-mirror.com (대체)</option></select>
 <button id="bGo">마인드맵 만들기</button><button id="bSm" class="g">예시 글</button><span id="st" role="status"></span></div></div>
-<div class="cd"><div class="r" style="margin:0 0 8px">
+<div class="cd"><div class="r" style="margin:0 0 8px"><input id="akey" type="password" placeholder="Anthropic API 키 (선택 · AI 제목 다듬기용)" style="width:250px" autocomplete="off"><input id="amodel" value="claude-haiku-5-5" style="width:150px" aria-label="모델 이름"><label><input type="checkbox" id="akeep"> 이 브라우저에 키 기억</label><button id="bAi" class="g">AI로 큰 가지 제목 다듬기</button></div>
+<div class="r" style="margin:0 0 8px">
 <select id="thm" aria-label="디자인"></select>
 <select id="lyt" aria-label="배치"><option value="bal">좌우 균형</option><option value="r">오른쪽으로</option><option value="call">이미지 주석(말풍선)</option></select>
 <label><input type="checkbox" id="flt"> 플로팅(자유 배치)</label><label><input type="checkbox" id="full"> 전체 문장 펼치기</label><button id="bEx" class="g">선택 문장 펼치기/접기</button><label>영상 주소 <input id="vurl" placeholder="유튜브 주소(선택)" style="width:210px"></label>
@@ -36,6 +37,47 @@ dialog{border:1px solid var(--bd);border-radius:10px;background:var(--cd);color:
 <dialog id="pad"><div class="r" style="margin:0 0 8px"><input type="color" id="pc" value="#222222" aria-label="색"><label>굵기 <input type="range" id="ps" min="1" max="40" value="4"></label><button id="pE" class="g">지우개</button><button id="pU" class="g">되돌리기</button><button id="pX" class="g">전체 지우기</button></div><canvas id="pcv" width="480" height="360"></canvas><div class="r"><button id="pOk">노드에 넣기</button><button id="pNo" class="g">취소</button></div></dialog></main>
 <script>
 //PARSE-START
+/* ══════════ 규칙 보강 목록 (R1~R19) — 코드(추출식)와 xmind(요약식) 비교 후 추가. 예시문구는 '비트코인 몇법칙' 자막에서 가져옴 ══════════
+ R1  키워드 품질: 동사형('말하는'·'따라잡고')·조사 조각('씨가')·숫자만 남은 토큰('12')이 키워드로 새는 것을 막아, 가지 제목이 '내용 단어'로만 만들어지게 한다.
+ R2  반복 요건: 소주제 키워드는 글 안에서 2번 이상 나온 단어만 쓴다(자막 오인식 '쿠페로니쿠스'처럼 1번 나온 희귀어가 제목을 차지하는 것 방지).
+ R3  핵심구 제목: '코페르니쿠스 혁명'·'시가 총액'처럼 붙어 다니는 2어절 구를 제목으로 쓴다. 중심 노드는 글 전체 핵심어(비트코인·가격·몇법칙)를 포함한 구를 우선한다.
+ R4  역할 라벨: 각 큰 가지에 도입/이력·경과/문답·풀이/핵심·결론/요청·당부/근거 인용/이야기/전개/마무리 같은 역할을 붙여 글의 기능을 보이게 한다.
+ R5  흐름 번호·흐름선: 큰 가지에 ①②③ 순서를 붙이고, 중심 노드 설명에 '① 도입 → ② … → ⑨ 마무리' 흐름을 적어 마인드맵만으로 전개 순서를 읽게 한다.
+ R6  구어체 핵심 표지: 표지어가 없어도 '그렇다고 성장의 본질이 바뀌지는 않는 거예요', '폭락이나 위기, 전쟁 같은 건 전부 일시적인 겁니다' 같은 단정 문장을 핵심 후보로 본다.
+ R7  문장 품질 필터: 내용어가 2개 미만인 조각이나 '은행 위기가 오기도 하잖아요' 같은 맞장구성 문장은 잎 후보에서 낮춰 가지의 잡음을 줄인다.
+ R8  질문 구분: '양쪽에 로그를 취한 그래프에서 직선이 나온다는 건 무슨 뜻일까요?' 같은 주제 질문만 ❓로 올리고, '어렵지만 그래도 약간은 이해가 되셨죠?' 같은 청중 확인 질문은 제목 후보에서 뺀다.
+ R9  문답 연결: ❓ 노드 아래에 바로 다음 평서문을 '→ 답'으로 붙여(예: '와, 도대체 이게 무슨 말인지?' → '가격이 65배씩 커집니다'), 질문만 덩그러니 남지 않게 한다.
+ R10 구조화 노드: ①연도 3개 이상이면 📅 연표(예: 2025년 10월 12만 6,000달러 → 2026년 7월 57,000달러 바닥), ②'제3조·2장 5절' 같은 조항 표기와 '540페이지의 책'·'팟캐스트'·'강연' 같은 출처 언급은 📖 인용·출처로 따로 묶는다.
+ R11 화제 전환 신호: '그럼 다시 프라 연설로 가보겠습니다', '오늘 마지막 3부에서는', '지금 바로 2부 영상으로 가시죠' 같은 전환 표현 위치를 구간 경계로 우대해 주제가 섞이지 않게 한다.
+ R12 이름 표기 통일(라벨 한정): 자막 인식 오류로 달라진 인명('산토스타시·산토스타지' → '산토스타', 한 글자 다른 표기)을 가장 많이 나온 표기로 맞춘다(원문 문장은 그대로 둠).
+ R13 군더더기 제거: 라벨에서 '이제·이거·좀·뭐' 같은 말버릇 단어를 지워 제목이 짧고 또렷하게 한다.
+ R14 소주제 단계 확대: 12문장 이상 구간은 소주제(2~5개)로 한 번 더 나눠, 큰 가지 아래가 '가지→소주제→근거'의 3단 구조가 되게 한다.
+ R15 반복 강조 우선: 영상 초반 예고와 뒷부분에서 되풀이되는 주장('움직임의 약 4%는 잡음', '1시그마 아래로 내려간 적이 없다')은 글의 주제일 가능성이 높으므로, 멀리 떨어진 곳과 문장 유사도가 높은 문장을 ★핵심 메시지 점수에 가산하고 ↻로 표시한다.
+ R16 핵심 용어 정리: '몇법칙이라고 부르는 이유는…', '이게 바로 거듭제곱입니다'처럼 용어를 정의하는 문장을 📚 핵심 용어로 모아(글에서 3문장 이상 나온 용어만), xmind의 '주요 개념 요약'에 해당하는 칸을 만든다.
+ R18 영어 조각 감점: 한국어 글에 섞인 영어 자막 조각('In this case within we never go andat…', 'I will say close to 90%.')은 번역 중복·잡음이므로 잎·제목·핵심 후보에서 뺀다(글 전체가 영어면 적용하지 않음).
+ R19 가지 제목 중복 방지: 앞 가지 제목에 이미 쓴 핵심구('지수 함수' 등)는 뒤 가지에서 쓰지 않고 다음 후보를 써서, 가지마다 제목이 달라 흐름이 보이게 한다.
+ R17 핵심 수치 요약: 구간마다 숫자·단위(%·달러·배)가 든 대표 문장 하나씩(예: '하락폭은 60%를 넘지 않는다', '8년 뒤 100만 달러, 20년 뒤 천만 달러')을 📊 핵심 수치로 모으되, 글에서 여러 번 되풀이된 수치(60%·4%·90%)는 가산해 근거가 되는 숫자를 한눈에 보이게 한다.
+════════════════════════════════════════════════════════════════════════════════════ */
+const FILL=/(^|\s)(?:이제|이거|그거|저거|좀|막|뭐|그냥|약간|되게|완전|저저|어)(?=\s|$)/g; /*R13*/
+const WH=/뭐|무엇|왜|어떻게|어떤|어디|누구|어느|무슨/,DLG=/(?:하셨어요|셨어요|했다고요|아시죠|아시겠|죠|세요|습니까|십니까|까요|하나요)\s*[?？]$/; /*R8*/
+const CHAT=/잖아요|거든요|그죠|그렇죠|아시죠|하셨어요|있잖아/; /*R7*/
+const CUE2=/결국|돼 버린|된 거예요|라는 거예요|라는 겁니다|라는 거죠|바뀌지는 않|잡음에 불과|일시적인|핵심|본질|바로 이|중요한 것은|가장 중요/; /*R6*/
+const ROLEC=/결국|된 거예요|돼 버린|핵심|본질|중요한 것은|가장 중요/; /*R4:역할 판정용(그러니까 같은 흔한 접속어는 제외)*/
+const BEG=/다음으로|하겠습니다|말씀드리겠|살펴보|시작하|기도하겠습니다|기도합시다|이야기를 조금|말씀드릴게|가보겠습니다|영상으로 가시죠|\d부에서는/,END=/마치려고|다음 주에 할 내용|여기까지|넘어가/; /*R11*/
+const YRX=/(?:19|20)\d\d\s*년/g,YR1=/(?:19|20)\d\d\s*년/,REFX=/(?:[가-힣]{2,8}\s*)?\d{1,3}\s*장\s*\d{1,3}\s*절|제\s?\d{1,3}\s?조/g,RF1=/\d{1,3}\s*장\s*\d{1,3}\s*절|제\s?\d{1,3}\s?조/,CUEQ=/기도해 주|기도해주|부탁|바랍니다|해 주십시오|하십시오|합시다|해 주세요/,PAST=/했습니다|하였|되었|갔습니다|받았|떠났|돌아왔/; /*R4,R10*/
+const CIRS='①②③④⑤⑥⑦⑧⑨⑩';
+const PHBAD=t=>/^씨[가는를의은이]?$/.test(t)||(t.length>=3&&/(고|서|죠|요|듯|며|면|다|네|던|께|진|된|는|은|히|남|적이|이죠)$/.test(t))||(t.length===2&&/[고죠요듯며]$/.test(t)); /*R3: 구의 조각이 동사형·조사 조각이면 제목 후보에서 제외*/
+const NUMG=/\d[\d.,]*\s*(?:%|퍼센트|달러|원|조|억|배|명|개|만)/g; /*R17: 수치 반복 집계용*/
+const NUMV=/\d[\d.,]*\s*(?:%|퍼센트|달러|원|조|억|배|명|개|만)/; /*R17: 날짜(년·월)를 뺀 '값' 숫자*/
+const SRCX=/(?:\d+\s*페이지의\s*)?(?:책|논문|보고서|강연|팟캐스트|학술지|저널)(?:을|를|은|는|이|가|에|에서|이라는|까지|의|도)?(?=[\s.,]|$)/; /*R10: 출처 언급*/
+const DEF1=/((?:[가-힣A-Za-z0-9]{1,8}\s)?[가-힣A-Za-z0-9]{2,10}?)(?:이라고|라고)\s*(?:부르는|부릅니다|부르죠|부르는데|불리는|불러요)/,DEF2=/((?:[가-힣A-Za-z0-9]{1,8}\s)?[가-힣A-Za-z0-9]{2,10})(?:은|는|이란|란)\s+[^.?!]{6,70}?(?:뜻합니다|의미합니다|뜻이죠|의미죠|가리킵니다|개념입니다|개념이지|개념이죠|지표입니다|법칙입니다|법칙이죠|현상입니다|이론입니다|뜻이에요)/,DEF3=/이게 바로\s*([가-힣A-Za-z0-9]{2,10})(?:입니다|이에요|예요|이죠)/; /*R16: 용어 정의 문형*/
+function normNames(root,S){/*R12: 자막 오인식으로 달라진 인명 표기를 라벨에서만 통일(보수적: 한 글자 차이·같은 성·2배 우세, 또는 조사·인식 잔여 글자가 붙은 변형)*/
+ const c={},re=/([가-힣]{2,4})\s?(?:선교사|목사|전도사|교수|박사|장로|집사|선생|씨|소장|대표)/g;for(const x of S)for(const m of x.matchAll(re))c[m[1]]=(c[m[1]]||0)+1;
+ const ns=Object.keys(c).filter(x=>x.length>=3),map={};
+ for(const x of ns)for(const y of ns){if(x===y||x.length!==y.length||x[0]!==y[0])continue;let d=0;for(let i=0;i<x.length;i++)if(x[i]!==y[i])d++;if(d===1&&c[x]>=2&&c[x]>=c[y]*2)map[y]=x}
+ const wc={};for(const w of S.join(' ').match(/[가-힣]{3,}/g)||[])wc[w]=(wc[w]||0)+1;
+ for(const x of ns)if(c[x]>=3)for(const w in wc)if(w.length===x.length+1&&w.startsWith(x)&&'시지가는의를이은도'.includes(w[x.length]))map[w]=x; /*산토스타시·산토스타지 → 산토스타*/
+ if(!Object.keys(map).length)return;(function w(n){for(const k in map)n.t=n.t.replace(new RegExp('(?<![가-힣])'+k+'(?![가-힣])','g'),map[k]);n.c.forEach(w)})(root)}
 let SRC=null;
 const RS=/^(?:#+\s*)?(?:제?\s*[0-9Ⅰ-Ⅹ]+\s*[장절부.)]\s*)?(서\s?론|본\s?론|결\s?론|들어가며|들어가는\s?말|머리말|문제\s?제기|맺으며|맺는\s?말|맺음말|마치며|결어|요약|주\s?문|이\s?유)\s*(?:[:：\-–.)\]]\s*|$)(.*)$/;
 const MH=/^(#{1,6})\s+(.+)$/,NH=/^(?:제\s?\d+\s?[장절부]|[Ⅰ-Ⅹ]+[.)])\s*(.+)$/;
@@ -44,19 +86,20 @@ const KEYS='첫째|둘째|셋째|넷째|다섯째|여섯째|(?:첫|두|세|네|�
 const EN=new RegExp('^('+KEYS+')[로는은이가]?(?=[\\s,:：]|$)[\\s,:：]*','i');
 const CN=/^(그러나|하지만|그런데|그리고|따라서|그래서|그러므로|즉|결국|특히|게다가|예를 들어|예컨대|요컨대|결론적으로|요약하면|이처럼|이렇듯|물론|다만|그러면은?|그럼|근데|그렇다면|그렇듯이|사실|제가|저는|내가|여러분들?|우리는|그럼이?|이게|그게|그니까|그러니까|이?라고|그이)[\s,]+/;
 const sn=t=>t.replace(/\s+/g,' ').trim().split(/(?<=[가-힣a-zA-Z)\]"'”’][.!?。])\s+/).filter(Boolean);
-function lab(s,n=24){s=s.trim().replace(EN,'').replace(CN,'').replace(/^["“'‘(\[]+|["”'’)\]]+$/g,'').replace(/[‘’“”]/g,'').replace(/[.!?。…]+$/,'').trim();
+function lab(s,n=24){s=s.trim().replace(EN,'').replace(CN,'').replace(FILL,' ').replace(/\s+/g,' ').trim()/*R13*/.replace(/^["“'‘(\[]+|["”'’)\]]+$/g,'').replace(/[‘’“”]/g,'').replace(/[.!?。…]+$/,'').trim();
  const m=s.match(/^(.{14,28}?)(?:\s*[,，;；]|\s(?:그리고|하지만|그러나|그래서)\s|(?:는데|지만|으며|면서|이며|이고|해서|하여|하며|인데)\s)/);if(m)s=m[1];
  {const b0=s;s=s.replace(/\s?(?:[가-힣]{0,3}(?:는|라는|다는|이라는))?\s?(?:거예요|거죠|겁니다|것입니다|것이에요|거야|거거든요)$/,'');if(s!==b0)s=s.replace(/(?<=[가-힣]{3})(?:을|를|이|가|은|는|에|의|도|로)$/,'')}s=s.replace(/\s?(입니다|것이다|이다)$/,'').replace(/(?<=[가-힣]{3})(?:죠|네요|예요|에요|어요|아요|세요|해요|돼요)$/,'');
  if(s.length>n){const k=s.lastIndexOf(' ',n-2);s=s.slice(0,k>8?k:n-1)+'…'}return s||'…'}
 function mk(s){s=s.replace(EN,'');const g=s.match(/^\(([^)]{2,16})\)\s*(.{4,})$/);if(g)return{t:g[1].trim(),n:s,c:[{t:lab(g[2]),n:g[2],c:[]}]};const cu=s.match(/^(주장 내용|주장|특징|정의|이유|예시|비판|장점|단점)\s+(.{6,})$/);if(cu)return{t:cu[1],n:s,c:[{t:lab(cu[2]),n:cu[2],c:[]}]};const m=s.match(/^([^:：]{2,16})[:：]\s*(.{6,})$/);
  if(m)return{t:m[1].trim(),n:s,c:[{t:lab(m[2]),n:m[2],c:[]}]};return{t:lab(s),n:s,c:[]}}
-const TS=/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(?:\d+분)?\s*(?:\d+초)?\s*/,GR=/감사합니다|안녕하세요|구독|좋아요|알림 설정|댓글|아시겠|그렇죠|그렇잖아|생각해 보셨|보셨나요|맞죠/;
+const TS=/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(?:\d+\s*(?:(?:hours?|minutes?|seconds?)|시간|분|초)[,\s]*)*/i,GR=/아시죠|감사합니다|안녕하세요|양해|분장|구독|좋아요|알림 설정|댓글|아시겠|그렇죠|그렇잖아|생각해 보셨|보셨나요|맞죠/;
 const clean=s=>s.replace(/\[[^\]]{1,12}\]/g,' ').replace(/(^|\s)(어+|음+|뭐|자|아)(?=[\s,]|$),?/g,' ').replace(/\s+/g,' ').trim();
 const sp=s=>{if(s.length<=110)return[s];const o=[];let c='';for(const p of s.split(/(?<=(?:다|요|죠|까|니다|네요|예요|세요))\s+/)){c=c?c+' '+p:p;if(c.length>=30){o.push(c);c=''}}if(c){if(o.length)o[o.length-1]+=' '+c;else o.push(c)}return o};
 const SUF=/(에서는|에서도|에서|으로는|으로써|으로|에게서|에게|한테|까지|부터|처럼|보다|만큼|이라고|라고|이라는|라는|이라면|라면|에는|에도|에|의|은|는|이|가|을|를|과|와|도|만|로|들|께서|께|이나|나|입니다|이다|이에요|예요|했습니다|했다|했고|하였|하고|하며|하는|하게|하면서|하면|하기|한다|합니다|할|한|됩니다|된다|되는|되어|돼서|됐다|인데|이고)$/;
 const STOP=new Set('이것 그것 저것 우리 여러분 정말 지금 그리고 그러면 이렇게 그렇게 때문 하지만 제가 정도 어떤 모든 다시 아주 너무 바로 이런 그런 저는 내가 나는 그럼 그래서 그러나 또는 이제 오늘 말씀 생각 부분 경우 사실 계속 항상 매우 가장 함께 통해 대한 위한 같은 있는 없는 하는 되는 있습 있었 있다 없다 않는 아닌 아니 이게 그게 무엇 어디 언제 누구 어떻게 여러 많이 조금 자체 관련 이후 이전 동안 중요 마치 지만 그건 이건 저건 하여 됩니 나오 나온 보이 보는 보면 보고 갖고 가지 하나 거의 이렇 그렇 어떻 모두 아무 대부분 계속해서 특히 결국 한번 어떻게 이미 아직 먼저 이야기 말씀드 하시 되면 되고 되어 같이 같은 입니 합니 습니 그냥 진짜 근데 하면 해서 이라 라고 수도 이른바 측면 이참 그렇다고 그러듯이 그러면서 아니라 이들 이를 이에 이로 여기 거기 때문에 따라 위해 대해 통해 관해 만큼 뿐만 이상 이하 가운데 사이 중에 비롯 않았 않을 되었 했던'.split(' '));
+['다음','이번','그때','지금까지','우리이','뭔가'].forEach(w=>STOP.add(w)); /*R1:제목을 차지하는 무의미 단어*/
 const stem=w=>{for(let k=0;k<2;k++){const m=w.match(SUF);if(m&&w.length-m[0].length>=2)w=w.slice(0,-m[0].length)}return w};
-const toks=s=>(s.match(/[가-힣]{2,}[0-9]*|[A-Za-z]{3,}|\d+[가-힣%]+/g)||[]).map(w=>stem(w.toLowerCase())).filter(w=>w.length>=2&&!STOP.has(w)&&!/^.+[다요]$|^.+게$|[았었]$|까요$|니다$|(해서|으니|니까|면서|으면|려고|도록|듯이|라서|어서|아서|해도|하면|해야|이며|하며|으며)$/.test(w)&&!/^[수것때데바줄리][가도는을만이에]$/.test(w));
+const toks=s=>(s.match(/[가-힣]{2,}[0-9]*|[A-Za-z]{3,}|\d+[가-힣%]+/g)||[]).map(w=>stem(w.toLowerCase())).filter(w=>w.length>=2&&!STOP.has(w)&&!/^.+[다요]$|^.+게$|[았었]$|까요$|니다$|(해서|으니|니까|면서|으면|려고|도록|듯이|라서|어서|아서|해도|하면|해야|이며|하며|으며)$/.test(w)&&!/^[수것때데바줄리][가도는을만이에]$/.test(w)&&!/^[가-힣][에은는을를]$/.test(w)/*R1:조사 조각*/&&!/.+(었고|았고|였고|치고|하고|되고|했는데|였는데|하셨|셨어|했어|거든|잖아|군요)$/.test(w)&&!/^(와서|가서|해서|타고|하는데|거죠|했죠|이죠)$/.test(w)&&!/^\d+$/.test(w)&&!/.+(하는|한다면|드렸듯|셈이죠)$/.test(w)/*R1:동사 어미*/);
 function tstream(L){
  const Ls=L.map(l=>l.trim()).filter(Boolean),run=uc=>{let full='';const off=[],chp=[];let pt=false;
   for(let k=0;k<Ls.length;k++){const x=Ls[k],m=x.match(TS);
@@ -73,23 +116,32 @@ const trL=L=>{const N=L.filter(l=>l.trim());return N.length>=5&&N.filter(l=>TS.t
 const plain=raw=>trL(raw.split('\n'))?tstream(raw.replace(/\r/g,'').split('\n')).S.join(' '):raw;
 function topic(S,title,tm,paras,chs,O){O=O||{};SRC={S,tm};const N=S.length,T=S.map(toks),df={},cl=(x,a,b)=>Math.max(a,Math.min(b,x));
  T.forEach(t=>new Set(t).forEach(w=>df[w]=(df[w]||0)+1));
- const hb=new Set(toks(O.about||'')),idf=w=>Math.log(1+N/(df[w]||1))*(hb.has(w)?1.4:1),vec=(a,b)=>{const v={};for(let i=a;i<b;i++)T[i].forEach(w=>v[w]=(v[w]||0)+idf(w));return v};
+ const NUMF=/\d[\d.,]*\s*(?:%|퍼센트|달러|원|조|억|bp|월|년|배|명|개)/,hb=new Set(toks(O.about||'')),idf=w=>Math.log(1+N/(df[w]||1))*(hb.has(w)?1.4:1),vec=(a,b)=>{const v={};for(let i=a;i<b;i++)T[i].forEach(w=>v[w]=(v[w]||0)+idf(w));return v};
  const cos=(x,y)=>{let d=0,a=0,b=0;for(const w in x){a+=x[w]*x[w];if(y[w])d+=x[w]*y[w]}for(const w in y)b+=y[w]*y[w];return a&&b?d/Math.sqrt(a*b):0};
- const cuts=(a,b,K,mn,win)=>{const g=[];for(let i=a+mn;i<=b-mn;i++)g.push([cos(vec(Math.max(a,i-win),i),vec(i,Math.min(b,i+win))),i]);
+ const cuts=(a,b,K,mn,win)=>{const g=[];for(let i=a+mn;i<=b-mn;i++)g.push([cos(vec(Math.max(a,i-win),i),vec(i,Math.min(b,i+win)))-(BEG.test(S[i])?.3:0)-(END.test(S[i-1])&&!BEG.test(S[i-1])?.3:0)/*R11:전환 표현 우대*/,i]);
   g.sort((x,y)=>x[0]-y[0]);const c=[a,b];for(const[,i]of g){if(c.length-1>=K)break;if(c.every(x=>Math.abs(x-i)>=mn))c.push(i)}return c.sort((x,y)=>x-y)};
- const kw=(a,b,n,w2,ex=[])=>{const sc={};for(let i=a;i<b;i++)T[i].forEach(w=>{if(!ex.includes(w))sc[w]=(sc[w]||0)+idf(w)*(w2?Math.log(1+w2.n/(w2.d[w]||1)):1)});const o=[];
+ const kw=(a,b,n,w2,ex=[],pen)=>{const sc={};for(let i=a;i<b;i++)T[i].forEach(w=>{if(!ex.includes(w)&&(N<15||(df[w]||0)>=2/*R2*/))sc[w]=(sc[w]||0)+idf(w)*(w2?Math.log(1+w2.n/(w2.d[w]||1)):1)*(pen&&pen.includes(w)?.5:1)});const o=[];
   for(const w of Object.keys(sc).sort((x,y)=>sc[y]-sc[x])){if(o.length>=n)break;if(!o.some(z=>z.includes(w)||w.includes(z))&&!ex.some(z=>z.includes(w)||w.includes(z)))o.push(w)}return o};
  const tag=x=>/[“"‘'][^”"’']{4,}[”"’'].{0,14}(했다|말했다|밝혔다|주장했다|덧붙였다|강조했다|지적했다|당부했다)/.test(x)?'발언':/수도 있|지도 모르|일 수 있|듯하|것 같|가능성/.test(x)?'추측':/불길|해야 한다|해야 했|필요하다|필요가 있|바람직|가깝|가까워 보인다|보인다\.?$|우려|위험하|라고 생각|판단한다|원인이다|문제다|않았을 것|것이다\.?$/.test(x)?'주장':'';
- const keys=(a,b,m,o={})=>{const sc=[];for(let i=a;i<b;i++){if(S[i].length<8||GR.test(S[i])||(o.used&&o.used.has(i)))continue;const u=[...new Set(T[i])];
-   sc.push([u.reduce((x,w)=>x+idf(w),0)/Math.sqrt(S[i].length)*(/중요|핵심|결국|즉|반드시|해야|때문|이유|결론|진리|원칙/.test(S[i])?1.3:1)*(o.w?(tag(S[i])==='주장'?1.5:1)*(i===a?1.2:1):1),i])}
+  /*R18: 영어 글자가 한글보다 많은 문장은 영어 자막 조각으로 보고, 한국어 글(KO)에서만 후보에서 제외*/
+  const lat=x=>{const h=(x.match(/[가-힣]/g)||[]).length,e=(x.match(/[A-Za-z]/g)||[]).length;return e>h*1.2},KO=S.filter(x=>!lat(x)).length>N*.6,nl=x=>KO&&lat(x);
+  /*R3: 붙어 다니는 2어절 구(2번 이상)를 점수화해 제목 후보로 만든다. 소주제 간 구분력은 w2(구간별 문서빈도)로 반영*/
+  const phr=(a,b,n,w2,pen)=>{const c={};for(let i=a;i<b;i++){let pv=null;for(const w of(S[i].match(/[가-힣]{2,}[0-9]*|[A-Za-z]{3,}/g)||[])){const t0=toks(w)[0]||null,t=t0&&!PHBAD(t0)?t0:null;if(t&&pv&&t!==pv){const k=pv+' '+t;c[k]=(c[k]||0)+1}pv=t}}
+   const sc=Object.entries(c).filter(([k,v])=>v>=2).map(([k,v])=>{const[x,y]=k.split(' ');return[k,v*(idf(x)+idf(y))*Math.log(1+w2.n/(Math.min(w2.d[x]||1,w2.d[y]||1)))*(pen&&(pen.includes(x)||pen.includes(y))?.6:1)]}).sort((p,q)=>q[1]-p[1]);
+   const o=[];for(const[k]of sc){if(o.length>=n)break;const[x,y]=k.split(' ');if(!o.some(z=>z.includes(x)||z.includes(y)))o.push(k)}return o};
+ /*R3: 중심 노드 제목 = 글 전체 핵심어(rk)를 포함한 반복 구 1개 + 나머지 핵심어. 인물·고유명사 구가 제목을 독차지하는 것 방지*/
+  const rtitle=rk=>{const r=phr(0,N,6,{n:1,d:{}},null),p=r.find(q=>rk.some(w=>q.includes(w)))||r[0]||'';return[p,...rk.filter(w=>!p.includes(w))].filter(Boolean).slice(0,3).join(' · ')};
+ const labF=(x,n=24)=>{const l=lab(x,n),m=x.match(NUMF);if(!m||/\d/.test(l))return l;let a=x.lastIndexOf(' ',Math.max(0,m.index-14));a=a<0?0:a+1;const e=x.indexOf(' ',m.index+m[0].length+10),g=x.slice(a,e<0?x.length:e).trim().replace(/[.!?。]+$/,'');return(a>0?'…':'')+(g.length>n+8?g.slice(0,n+7)+'…':g)+(e>=0?'…':'')};
+ const keys=(a,b,m,o={})=>{const sc=[];for(let i=a;i<b;i++){if(S[i].length<8||GR.test(S[i])||(o.used&&o.used.has(i))||(T[i].length<2&&!NUMF.test(S[i]))/*R7:내용어 2개 미만 조각*/||nl(S[i])/*R18*/)continue;const u=[...new Set(T[i])];
+   sc.push([u.reduce((x,w)=>x+idf(w),0)/Math.sqrt(S[i].length)*(/중요|핵심|결국|즉|반드시|해야|때문|이유|결론|진리|원칙/.test(S[i])?1.3:1)*(NUMF.test(S[i])?1.4:1)*(CHAT.test(S[i])?.6:1)/*R7:맞장구성 문장 감점*/*(o.w?(tag(S[i])==='주장'?1.5:1)*(i===a?1.2:1):1),i])}
   let ids=sc.sort((x,y)=>y[0]-x[0]).slice(0,m).map(x=>x[1]);if(o.f!=null&&!ids.includes(o.f)&&S[o.f].length>=8&&!(o.used&&o.used.has(o.f))){if(ids.length>=m)ids.pop();ids.push(o.f)}
-  return ids.sort((x,y)=>x-y).map(i=>{const g=o.w?tag(S[i]):'';return{t:(g?g+' · ':'')+lab(S[i]),n:S[i],si:i,c:[]}})};
+  return ids.sort((x,y)=>x-y).map(i=>{const g=o.w?tag(S[i]):'';return{t:(g?g+' · ':'')+labF(S[i]),n:S[i],si:i,c:[]}})};
  const tt=i=>tm&&tm[i]?tm[i]+' ':'';
  if(paras&&paras.length>=4&&!(O.topics&&O.topics.length>=2)){const cir='①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮',rk=[...new Set([...kw(0,N,3,null),...hb])];
   let G=paras.map(p=>[p[0],p[1]]);const tgt=Math.min(7,Math.max(3,Math.ceil(G.length/1.5)));
   while(G.length>tgt){let bi=0,bs=-9;for(let i=0;i<G.length-1;i++){const q=cos(vec(...G[i]),vec(...G[i+1]))-.015*(G[i+1][1]-G[i][0]);if(q>bs){bs=q;bi=i}}G.splice(bi,2,[G[bi][0],G[bi+1][1]])}
   const sd={};G.forEach(g=>{const u=new Set();for(let i=g[0];i<g[1];i++)T[i].forEach(w=>u.add(w));u.forEach(w=>sd[w]=(sd[w]||0)+1)});
-  const w2={n:G.length,d:sd},root={t:title||rk.join(' · ')||'글 요약',c:[]},cs=[];
+  const w2={n:G.length,d:sd},root={t:title||rtitle(rk)||'글 요약'/*R3*/,c:[]},cs=[];
   const lastS=new Set(paras.map(p=>p[1]-1));
   for(let i=0;i<N;i++)if(S[i].length>=10&&tag(S[i])==='주장')cs.push([T[i].reduce((x,w)=>x+idf(w),0)/Math.sqrt(S[i].length)*(i>=N*.6?1.2:1)*(/불길|가까워 보인다|해야 한다|바람직|필요하다|더라면/.test(S[i])?2:1)*(lastS.has(i)?1.3:1),i]);
   const used=new Set(),ck=cs.sort((x,y)=>y[0]-x[0]).slice(0,3).map(x=>x[1]).sort((x,y)=>x-y);
@@ -98,16 +150,29 @@ function topic(S,title,tm,paras,chs,O){O=O||{};SRC={S,tm};const N=S.length,T=S.m
    cue=/^(그렇다고|하지만|그러나|반면|다만|그런데|무엇보다)/,
    role=j===0?'도입 · ':j===G.length-1?'결론 · ':(cue.test(f)||cue.test(S[a+1]||''))?'전환 · ':[...Array(b-a)].filter((_,k)=>tag(S[a+k])==='추측').length>=2?'해석 · ':/더라면|했어야|조정할 필요|해야 한다/.test(S.slice(a,b).join(' '))?'제언 · ':'';
    let kk=keys(a,b,cl(Math.round((b-a)/3),1,3)+(j===0||j===G.length-1?1:0),{used,w:1,f:j===0?a:j===G.length-1?b-1:null});if(!kk.length)kk=keys(a,b,1,{w:1});
-   root.c.push({si:a,t:cir[j]+' '+role+(key.join(', ')||'내용'),c:kk})});
+   const ph=phr(a,b,1,w2,rk),kt=[...ph,...key.filter(z=>!ph.some(p=>p.includes(z)))].slice(0,3).join(' · ');/*R3*/
+    root.c.push({si:a,t:cir[j]+' '+role+(kt||labF(S[a]||'',16)||'내용'),c:kk})});
+  /*R5: 문단형에서도 중심 노드에 흐름선 기록*/
+  root.n='흐름: '+root.c.filter(z=>z.si!=null).map(z=>z.t.replace(/\s*·\s*$/,'')).join(' → ');
   return root}
- const rk=[...new Set([...kw(0,N,3,null),...hb])],SPK=/핵심 질문|핵심은|결론은|진짜 결론|중요한 것은|가장 중요|명제|오늘 영상|꼭 기억|인사이트|본질|정확하게 세 가지|이 점입니다/,isQ=x=>/[?？]\s*$/.test(x);
- const hl=i=>(isQ(S[i])?'❓ ':'')+lab(S[i],30);
- const head=(a,b,ex)=>{let best=-1,bs=-1;for(let i=a;i<b;i++){const x=S[i];if(x.length<10||x.length>90||GR.test(x)||ex.has(i))continue;
-   const m=[...new Set(T[i])].reduce((p,w)=>p+idf(w),0)/Math.sqrt(x.length)*(isQ(x)&&i<a+(b-a)*.6?1.8:1)*(tag(x)==='주장'||SPK.test(x)?1.5:1)*(i===a?1.15:1)*(x.length<14?.5:1);if(m>bs){bs=m;best=i}}return best};
- const gx=new Set();let cm=[];
- for(let i=0;i<N;i++)if(S[i].length>=12&&S[i].length<=130&&SPK.test(S[i]))cm.push([[...new Set(T[i])].reduce((p,w)=>p+idf(w),0)/Math.sqrt(S[i].length)*(i<N*.15||i>N*.8?1.3:1),i]);
- let ci=cm.sort((x,y)=>y[0]-x[0]).slice(0,3).map(x=>x[1]);ci.slice().forEach(i=>{if(/명제입니다|다음과 같/.test(S[i])&&S[i+1]&&!ci.includes(i+1))ci.push(i+1)});
- ci=[...new Set(ci)].sort((x,y)=>x-y);
+ const rk=[...new Set([...kw(0,N,3,null),...hb])],SPK=/핵심 질문|핵심은|결론은|진짜 결론|중요한 것은|가장 중요|명제|오늘 영상|꼭 기억|인사이트|본질|정확하게 세 가지|이 점입니다/,isQ=x=>/[?？]\s*$/.test(x),isQ2=x=>isQ(x)&&WH.test(x)&&!DLG.test(x)/*R8:주제 질문만*/;
+ const hl=i=>(isQ2(S[i])?'❓ ':'')+labF(S[i],30);
+ const head=(a,b,ex)=>{let best=-1,bs=-1;for(let i=a;i<b;i++){const x=S[i];if(x.length<10||x.length>90||GR.test(x)||ex.has(i)||nl(x))continue;
+   const m=[...new Set(T[i])].reduce((p,w)=>p+idf(w),0)/Math.sqrt(x.length)*(isQ2(x)&&i<a+(b-a)*.6?1.8:1)*(isQ(x)&&!isQ2(x)?.5:1)*(tag(x)==='주장'||SPK.test(x)?1.5:1)*(i===a?1.15:1)*(x.length<14?.5:1)*(NUMF.test(x)?1.2:1);if(m>bs){bs=m;best=i}}return best};
+ const gx=new Set(),ciRep={};
+ /*R15+R6: 핵심 후보 = (내용어 밀도) × (표지어 가중: 명시 표지 2배·구어체 단정 1.7배) × (멀리 떨어진 문장과의 유사도로 본 반복 강조, 최대 약 2.3배) × (초반 예고·후반부 위치 1.25배).
+   반복 강조는 영상 초반 예고와 뒷부분 재진술에서 나타나므로, 같은 주장을 두 번 말하면 점수를 크게 올린다. 서로 비슷한 문장(코사인 0.6 초과)은 하나만 뽑는다.*/
+ const SPKS=/핵심 질문|핵심은|결론은|진짜 결론|명제|오늘 영상|꼭 기억|인사이트|정확하게 세 가지|이 점입니다/,VS=[],vs=i=>VS[i]||(VS[i]=vec(i,i+1));
+ let ci=[];{const cand=[],gap=Math.max(15,Math.round(N*.04));
+  for(let i=0;i<N;i++){const x=S[i];if(x.length<14||x.length>130||isQ(x)||GR.test(x)||/죠\.?$/.test(x)||T[i].length<3||nl(x))continue;
+   let rep=0,rj=-1;if(N<=2000)for(let j=0;j<N;j++){if(Math.abs(i-j)<gap||S[j].length<14||T[j].length<3)continue;const c=cos(vs(i),vs(j));if(c>rep){rep=c;rj=j}}
+   const cue=SPKS.test(x)?2:(SPK.test(x)||CUE2.test(x))?1.7:1;if(!(cue>1||rep>=.5))continue;
+   cand.push({i,rj,rep,sc:[...new Set(T[i])].reduce((p,w)=>p+idf(w),0)/Math.sqrt(x.length)*cue*(1+2.2*Math.max(0,rep-.4))*(i<N*.15||i>=N*.6?1.25:1)})}
+  cand.sort((p,q)=>q.sc-p.sc);const pick=[];
+  for(const c of cand){if(pick.length>=3)break;if(pick.some(p=>Math.abs(p.i-c.i)<gap||cos(vs(p.i),vs(c.i))>.6))continue;pick.push(c)}
+  ci=pick.map(c=>{if(c.rep>=.5)ciRep[c.i]=c.rj;return c.i});
+  ci.slice().forEach(i=>{if(/명제입니다|다음과 같/.test(S[i])&&S[i+1]&&!ci.includes(i+1))ci.push(i+1)});
+  ci=[...new Set(ci)].sort((x,y)=>x-y);if(ci.length<2)ci=[]}
  const ITEMRE=/^(?:(\d{1,2})\s*(?:번|\.)\s*|(그다음에|다음으로|또 하나는|마지막으로)\s*)([가-힣A-Za-z]{2,10}(?:\s[가-힣A-Za-z]{2,10})?)/,NOLAB=/^(주장|특징|내용|이게|이건|이제|그|이|저|이런|이렇게|어|예|정의)$/,CUEA=/^(주장 내용|주장|특징|정의|이유|예시|비판|장점|단점)\s+\S/;
  const itemOf=x=>{const m=x.match(ITEMRE);if(!m)return null;const lab=[];for(const t of m[3].split(/\s+/)){if(NOLAB.test(t))break;lab.push(t)}if(!lab.length)return null;const l=lab.join(' ');return{n:m[1]?+m[1]:0,t:l.replace(/(이|가|은|는)$/,''),rest:x.slice(x.indexOf(l)+l.length).replace(/^[\s.,]+/,'')}};
  const runs=[];{let cur=null;for(let i=0;i<N;i++){const q=itemOf(S[i]);if(!q)continue;q.i=i;
@@ -124,26 +189,59 @@ function topic(S,title,tm,paras,chs,O){O=O||{};SRC={S,tm};const N=S.length,T=S.m
    V=tp.map((t,k)=>{const v=seed(t),f={},len=Math.max(1,b[k+1]-b[k]);for(let i=b[k];i<b[k+1];i++)for(const w of new Set(T[i]))f[w]=(f[w]||0)+1;
     Object.entries(f).sort((x,y)=>y[1]*idf(y[0])-x[1]*idf(x[0])).slice(0,25).forEach(([w,c])=>{v[w]=(v[w]||0)+2*c/len});return v})}
   return b};
+ const PROMO=/구독|좋아요|알림 설정|특강|신청|고정 댓글|링크|경제학교|가입|세미나|줌 수업|멤버십|후원|공유해|초대/,pm=[];S.forEach((x,i)=>{if(PROMO.test(x))pm.push(i)});
+ let promo=null;{const gs=[];pm.forEach(i=>{const g=gs[gs.length-1];if(g&&i-g[g.length-1]<=3)g.push(i);else gs.push([i])});const best=gs.filter(g=>g.length>=3&&g[0]>=N*.4).sort((x,y)=>y.length-x.length)[0];
+  if(best){promo=best;best.forEach(i=>gx.add(i))}}
  let segs=[];
  if(O.topics&&O.topics.length>=2&&N>=O.topics.length*3){const b=align(O.topics);O.topics.forEach((t,k)=>segs.push({a:b[k],b:b[k+1],title:t,pre:''}))}
  if(!segs.length&&chs&&chs.length>=2){const st=[];chs.forEach(c=>{if(c.si>0&&c.si<N&&(!st.length||c.si>st[st.length-1].si))st.push(c)});
   if(st.length>=2){if(st[0].si>=3)segs.push({a:0,b:st[0].si,title:'',pre:'도입 · '});
    st.forEach((c,k)=>segs.push({a:k===0&&st[0].si<3?0:c.si,b:k+1<st.length?st[k+1].si:N,title:c.t,pre:''}))}}
- if(!segs.length){const K1=cl(Math.round(N/45),3,8),c1=cuts(0,N,K1,Math.max(4,Math.floor(N/(2*K1))),6),n1=c1.length-1;
+ if(!segs.length){const K1=cl(Math.round(N/26),3,9),c1=cuts(0,N,K1,Math.max(4,Math.floor(N/(2*K1))),6),n1=c1.length-1;
   for(let k=0;k<n1;k++)segs.push({a:c1[k],b:c1[k+1],title:'',pre:n1>3&&k===0?'도입 · ':n1>3&&k===n1-1?'마무리 · ':''})}
  runs.forEach(r=>{const g=segs.find(z=>z.a<=r.a&&r.a<z.b);if(g)r.b=Math.min(r.b,g.b);for(let i=r.a;i<r.b;i++)gx.add(i)});
  const sd={};segs.forEach(g=>{const u=new Set();for(let i=g.a;i<g.b;i++)T[i].forEach(w=>u.add(w));u.forEach(w=>sd[w]=(sd[w]||0)+1)});
- const w2={n:segs.length,d:sd},nodes=[],root={t:title||rk.join(' · ')||'글 요약',c:[]};
- if(ci.length>=2){ci.forEach(i=>gx.add(i));root.c.push({t:'★ 핵심 메시지',c:ci.map(i=>({si:i,t:hl(i),n:S[i],c:[]}))})}
- const sub=(a,b,ex)=>{const L=b-a;
-  if(L>=18){const K2=cl(Math.round(L/9),2,5),c2=cuts(a,b,K2,Math.max(3,Math.floor(L/(2*K2))),4),o=[];
+ const w2={n:segs.length,d:sd},nodes=[],root={t:title||rtitle(rk)||'글 요약'/*R3*/,c:[]};
+ if(ci.length>=2){ci.forEach(i=>gx.add(i));root.c.push({t:'★ 핵심 메시지',c:ci.map(i=>({si:i,t:tt(i)+hl(i)+(ciRep[i]!=null?' ↻':''),n:S[i]+(ciRep[i]!=null?' (↻ '+(tm&&tm[ciRep[i]]?tm[ciRep[i]]+' ':'')+'에서도 반복)':''),c:[]}))})}
+  /*R16: 용어 정의 문형(DEF1~3)을 찾아 용어·정의 문장을 📚 핵심 용어로 모은다. 글 안에서 3문장 이상 나온 용어만 인정해 잡음을 막고, 같은 용어는 한 번만 올린다*/
+  {const seen=new Set(),dl=[];for(let i=0;i<N&&dl.length<6;i++){const x=S[i];if(x.length<10||x.length>150||isQ(x)||gx.has(i))continue;const m=x.match(DEF1)||x.match(DEF2)||x.match(DEF3);if(!m)continue;const tk=toks(m[1]),t=tk[tk.length-1];if(!t||(df[t]||0)<3||T[i].length<3||[...seen].some(q=>q.includes(t)||t.includes(q)))continue;seen.add(t);dl.push({i,term:m[1].trim()})}
+   if(dl.length>=2){dl.forEach(z=>gx.add(z.i));root.c.push({t:'📚 핵심 용어',n:'본문에서 정의·설명한 용어',c:dl.map(z=>({si:z.i,t:tt(z.i)+z.term+' — '+labF(S[z.i],26),n:S[z.i],c:[]}))})}}
+  /*R17: 구간마다 값 숫자(NUMV)가 든 문장 중 내용어 밀도가 가장 높은 1문장을 뽑아 📊 핵심 수치로 모은다(최대 8개, 3개 미만이면 생략)*/
+  {const nc={};S.forEach(x=>{new Set((x.match(NUMG)||[]).map(z=>z.replace(/\s/g,''))).forEach(z=>nc[z]=(nc[z]||0)+1)});const pk=[];segs.forEach(g=>{let best=-1,bs=0;for(let i=g.a;i<g.b;i++){const x=S[i];if(ci.includes(i)||gx.has(i)||x.length<10||x.length>140||GR.test(x)||isQ(x)||!NUMV.test(x)||nl(x))continue;const rp=Math.max(0,...(x.match(NUMG)||[]).map(z=>(nc[z.replace(/\s/g,'')]||1)-1)),m=[...new Set(T[i])].reduce((p,w)=>p+idf(w),0)/Math.sqrt(x.length)*(/\d{2,}/.test(x)?1.2:1)*(1+.25*Math.min(4,rp));if(m>bs){bs=m;best=i}}if(best>=0)pk.push([bs,best])});
+   const top=pk.sort((p,q)=>q[0]-p[0]).slice(0,Math.min(8,Math.max(3,Math.round(segs.length*.8)))).map(p=>p[1]).sort((p,q)=>p-q);
+   if(top.length>=3)root.c.push({t:'📊 핵심 수치',n:'구간별로 수치가 담긴 대표 문장',c:top.map(i=>({si:i,t:tt(i)+labF(S[i],30),n:S[i],c:[]}))})}
+  /*R9: 주제 질문(❓)의 바로 뒤 평서문(5문장 이내)을 '→ 답'으로 붙인다*/
+  const ansOf=(h,y,ex)=>{if(!isQ2(S[h]))return[];for(let k=h+1;k<Math.min(y,h+5);k++){if(!isQ(S[k])&&S[k].length>=10&&!GR.test(S[k])&&!ex.has(k)){ex.add(k);return[{si:k,t:'→ '+labF(S[k]),n:S[k],c:[]}]}}return[]};
+  const sub=(a,b,ex)=>{const L=b-a;
+  if(L>=12/*R14:소주제 단계 확대(18→12)*/){const K2=cl(Math.round(L/9),2,5),c2=cuts(a,b,K2,Math.max(3,Math.floor(L/(2*K2))),4),o=[];
    for(let j=0;j<c2.length-1;j++){const x=c2[j],y=c2[j+1],h=head(x,y,ex);if(h<0)continue;ex.add(h);
-    const sup=keys(x,y,y-x>=14?1:0,{used:ex});sup.forEach(q=>ex.add(q.si));o.push({si:h,t:tt(x)+hl(h),n:S[h],c:sup})}return o}
+    const ans=ansOf(h,y,ex),sup=keys(x,y,cl(Math.round((y-x)/5),0,3),{used:ex});sup.forEach(q=>ex.add(q.si));o.push({si:h,t:tt(x)+hl(h),n:S[h],c:ans.concat(sup)})}return o}
   const o=keys(a,b,cl(Math.round(L/4),2,4),{used:ex});o.forEach(q=>ex.add(q.si));return o};
- for(const g of segs){const ex=new Set(gx),h=head(g.a,g.b,ex),key=kw(g.a,g.b,3,w2,rk);
-  const node={si:g.a,t:tt(g.a)+g.pre+(g.title||(key.length?key.slice(0,2).join('·')+(h>=0?' — '+(isQ(S[h])?'❓ ':'')+lab(S[h],22):''):(h>=0?hl(h):'내용'))),n:'키워드: '+key.join(', '),c:[]};node.g=g;nodes.push(node);
-  if(h>=0)ex.add(h);if(g.title&&h>=0)node.c.push({si:h,t:hl(h),n:S[h],c:[]});
-  node.c.push(...sub(g.a,g.b,ex));root.c.push(node)}
+  /*R10: 연도 3개 이상이면 연도순 📅 연표(한 문장에 연도가 여러 개면 연도 앞에서 잘라 사건별로 분리)*/
+ const yearsOf=(a,b,ex)=>{const m=new Map();for(let i=a;i<b;i++){const x=S[i],ix=[...x.matchAll(YRX)];ix.forEach((q,j)=>{const y=+q[0].match(/\d+/)[0],pe=j?ix[j-1].index+ix[j-1][0].length:0,ne=j+1<ix.length?ix[j+1].index:x.length;
+    let st=Math.max(pe,q.index-18);if(st>pe){const k=x.indexOf(' ',st);st=k<0||k>q.index?q.index:k+1}let en=Math.min(ne,q.index+q[0].length+22);if(en<ne){const k=x.lastIndexOf(' ',en);en=k>q.index+q[0].length?k:en}
+    const r=(x.slice(st,q.index)+' '+x.slice(q.index+q[0].length,en)).replace(/^\s*(?:\d{1,2}\s*월\s*)?(?:\d{1,2}\s*일\s*)?(?:부터|까지|도|에는|에|엔)?\s*/,'').replace(/\s(?:에|까지)\s/,' ').replace(/\s+/g,' ').trim();if(!m.has(y)&&toks(r).filter(w=>!PHBAD(w)).length>=1)m.set(y,{y,i,r:r.length>=4?r:x})})}
+  if(m.size<3)return null;const Y=[...m.values()].sort((p,q)=>p.y-q.y).slice(0,8);Y.forEach(z=>ex.add(z.i));
+  return{si:Y[0].i,t:'📅 연표 · '+Y.length+'건',n:'연도별 사건 정리',c:Y.map(z=>({si:z.i,t:z.y+' — '+lab(z.r,26),n:S[z.i],c:[]}))}};
+  /*R10: 조항 표기(제3조·2장 5절)와 출처 언급(540페이지의 책·팟캐스트·강연)이 든 문장을 📖 인용·출처로 따로 묶는다(구간당 최대 3개)*/
+ const refsOf=(a,b,ex)=>{const R=[];for(let i=a;i<b&&R.length<3;i++){const x=S[i];if(ex.has(i)||GR.test(x))continue;const m=x.match(REFX);if(m)R.push({i,r:m[0].replace(/\s+/g,' ').replace(/^(이제|그|다음|여기|자)\s+/,'').trim()});else if(SRCX.test(x)&&!isQ(x))R.push({i,r:''})}
+  if(!R.length)return null;R.forEach(z=>ex.add(z.i));const rs=R.map(z=>z.r).filter(Boolean);
+  return{si:R[0].i,t:'📖 인용·출처 · '+(rs.length?rs.join(', '):R.length+'건'),n:'본문에서 인용·언급한 출처(책·강연·팟캐스트·조항 등)',c:R.map(z=>({si:z.i,t:(z.r?z.r+' — ':'')+lab(S[z.i].replace(REFX,''),24),n:S[z.i],c:[]}))}};
+  /*R4: 구간의 역할 판정(우선순위 순). 첫 구간=도입, 마지막=마무리, 이후 연도·질문·결론표지·요청·인용·과거형 서사 비율로 결정*/
+ const roleOf=(g,k,K)=>{const L=g.b-g.a;let q=0,y=0,rq=0,cc=0,rf=0,ps=0;for(let i=g.a;i<g.b;i++){const x=S[i];if(isQ2(x))q++;if(YR1.test(x))y++;if(CUEQ.test(x))rq++;if(ROLEC.test(x))cc++;if(RF1.test(x))rf++;if(PAST.test(x))ps++}
+  if(k===0)return'도입';if(k===K-1&&K>=3)return rq>=1?'마무리·요청':'마무리';
+  if(y>=Math.max(3,L*.12))return'이력·경과';if(q>=Math.max(2,L*.15))return'문답·풀이';if(cc>=Math.max(2,L*.06))return'핵심·결론';if(rq>=2)return'요청·당부';if(rf>=1)return'근거 인용';if(ps>=L*.3)return'이야기';return'전개'};
+ const usedPh=new Set();/*R19*/
+ segs.forEach((g,k)=>{const ex=new Set(gx),h=head(g.a,g.b,ex),key=kw(g.a,g.b,3,w2,[...hb],rk),ph=phr(g.a,g.b,5,w2,rk).filter(q=>!usedPh.has(q)).slice(0,2),role=g.title?'':roleOf(g,k,segs.length);
+  ph.forEach(q=>usedPh.add(q));const kt=[...ph,...key.filter(z=>!ph.some(p=>p.includes(z)))].slice(0,3).join(' · ');
+  /*R5: 제목 = 시각 + 흐름번호 + 역할 + 핵심구. 요지 문장은 제목에서 빼고 첫 자식으로 내려 제목을 명사구로 유지한다*/
+  const node={si:g.a,t:tt(g.a)+CIRS[k]+' '+(g.title?g.pre+g.title:(role==='전개'?'':role+(kt?' · ':''))+kt),n:'키워드: '+key.join(', ')+(ph.length?' / 핵심구: '+ph.join(', '):''),c:[]};node.g=g;
+  node.fl=CIRS[k]+(g.title||(role==='전개'?'':role))+((ph[0]||key[0])?(g.title||role!=='전개'?'('+(ph[0]||key[0])+')':(ph[0]||key[0])):'');nodes.push(node);
+  if(h>=0){ex.add(h);node.c.push({si:h,t:hl(h),n:S[h],c:ansOf(h,g.b,ex)})}
+  const yy=yearsOf(g.a,g.b,ex);if(yy)node.c.push(yy);const rr=refsOf(g.a,g.b,ex);if(rr)node.c.push(rr);
+  node.c.push(...sub(g.a,g.b,ex));root.c.push(node)});
+  /*R5: 중심 노드 설명에 전체 흐름선을 기록(마인드맵만 보고도 전개 순서를 읽게 함)*/
+  if(nodes.length>=2)root.n='흐름: '+nodes.map(z=>z.fl).join(' → ');
  const listNode=r=>{const its=r.items,a=r.a,b=r.b,cn={};its.forEach(q=>{const w=q.t.split(' ').pop();cn[w]=(cn[w]||0)+1});const tp=Object.entries(cn).sort((x,y)=>y[1]-x[1])[0];
   const nd={si:a,t:tt(a)+((tp&&tp[1]>=Math.ceil(its.length/2)?tp[0]:kw(a,b,1,w2,rk)[0]||'항목')+' '+its.length+'가지'),n:'열거: '+its.map(q=>q.t).join(', '),c:[]};
   its.forEach((q,j)=>{const x=q.i+1,y=j+1<its.length?its[j+1].i:b,ch={si:q.i,t:(j+1)+'. '+q.t,n:S[q.i],c:[]};
@@ -151,7 +249,8 @@ function topic(S,title,tm,paras,chs,O){O=O||{};SRC={S,tm};const N=S.length,T=S.m
    for(let k=x;k<y&&ch.c.length<3;k++){if(/^(주장 내용|주장|특징|정의|이유|예시|비판|장점|단점)[\s.]*$/.test(S[k])&&S[k+1]&&k+1<y){ch.c.push({t:S[k].replace(/[\s.]+$/,''),n:S[k]+' '+S[k+1],c:[mk(S[k+1])]});k++}else if(CUEA.test(S[k]))ch.c.push(mk(S[k]))}
    if(ch.c.length<2){const ex2=new Set(),have=new Set();for(let k=a;k<b;k++)if(!(k>=x&&k<y))ex2.add(k);(function w(n){have.add(n.n);n.c.forEach(w)})(ch);keys(x,y,1,{used:ex2}).forEach(z=>{if(!have.has(z.n))ch.c.push(z)})}nd.c.push(ch)});return nd};
  runs.forEach(r=>{const nd=nodes.find(z=>z.g.a<=r.a&&r.a<z.g.b)||nodes[nodes.length-1];if(nd){nd.c.push(listNode(r));nd.c.sort((x,y)=>(x.si==null?1e9:x.si)-(y.si==null?1e9:y.si))}});
- nodes.forEach(z=>delete z.g);return root}
+ if(promo){const ks=promo.slice().sort((x,y)=>(NUMF.test(S[y])?1:0)-(NUMF.test(S[x])?1:0)||x-y).slice(0,4).sort((x,y)=>x-y);root.c.push({si:promo[0],t:tt(promo[0])+'📢 안내·홍보',n:'채널/강의 안내 문장 '+promo.length+'개',c:ks.map(i=>({si:i,t:lab(S[i],26),n:S[i],c:[]}))})}
+ nodes.forEach(z=>{delete z.g;delete z.fl});normNames(root,S);return root}
 const CAP=/^(<\s*(?:표|그림|도|사진)\s*\d*\s*>|Box\.|\[Box\])/i,SRCL=/^(자료|출처|주|Source|Note)\s*[:：]/i,NOTE=/^[※＊*]\s*/;
 const NUMT=/^(\d{1,2})\.\s+(\S.{1,60})$/,SYM2=/^[◆■▶▷●◎★▣◈]\s*(.+)$/,CIRC=/^[①-⑳]\s*(.+)$/,KORD=/^[가-하]\.\s+(.+)$/,PARN=/^\(\d{1,2}\)\s+(.+)$/,PKOR=/^\([가-하]\)\s+(.+)$/,PUA=/^[\uE000-\uF8FF]\s*(.+)$/,CIR3=/^[○◦◯□◇]\s*(.+)$/,DASH=/^[-–—•·▪▫‣▸]\s+(.+)$/,FOOT=/^\d{1,2}\)\s+(.+)$/,BJ=/^\[(?:별지|부록|별첨|첨부)[^\]]*\]/;
 const isS=t=>(/[.。]$/.test(t)&&t.length>12)||(/[다요]$/.test(t)&&t.length>25)||t.length>75;
@@ -382,7 +481,7 @@ document.addEventListener('keydown',e=>{if($('pad').open||/INPUT|TEXTAREA|SELECT
  else if(k==='f2')edit();else if(k==='e')ex();else if(k==='c')tog();else if(k==='k')colr();else if(k==='f')fit();else if(k.startsWith('arrow'))nav(k);else u=0;
  if(u)e.preventDefault()});
 function anchorStart(){if(!root||!root.im||$('lyt').value!=='call'){$('st').textContent="배치를 '이미지 주석'으로 바꾸고, 가운데 노드에 이미지를 먼저 넣어 주세요.";return}if(!sel||sel.p!==root){$('st').textContent='가운데에 바로 연결된 가지를 먼저 선택하세요.';return}anc=true;$('st').textContent='이미지 위에서 이 가지를 붙일 위치를 클릭하세요 (이미지 밖을 누르면 취소).'}
-const A={bAn:()=>anchorStart(),bSv:()=>saveMap(),bLd:()=>$('fLd').click(),bXp:()=>exportMap(),bEx:()=>ex(),bIm:()=>$('fIm').click(),bIx:()=>{if(sel.im){snap();sel.im=null;sel._g=null;lay()}},bDr:openPad,bAc:()=>add(0),bAs:()=>add(1),bDl:del,bCl:tog,bCo:colr,bUn:undo,bRe:redo,bFt:fit,bPr:()=>pres<0?startP():exitP(),
+const A={bAi:()=>aiRefine(),bAn:()=>anchorStart(),bSv:()=>saveMap(),bLd:()=>$('fLd').click(),bXp:()=>exportMap(),bEx:()=>ex(),bIm:()=>$('fIm').click(),bIx:()=>{if(sel.im){snap();sel.im=null;sel._g=null;lay()}},bDr:openPad,bAc:()=>add(0),bAs:()=>add(1),bDl:del,bCl:tog,bCo:colr,bUn:undo,bRe:redo,bFt:fit,bPr:()=>pres<0?startP():exitP(),
  bFs:()=>C.requestFullscreen&&C.requestFullscreen(),bRc:auto,bPg:()=>C.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='mindmap.png';a.click()})};
 for(const k in A)$(k).onclick=()=>{if(root||k==='bFs')A[k]();C.focus()};
 Object.keys(T).forEach(k=>$('thm').add(new Option(k,k)));
@@ -440,12 +539,29 @@ function exportMap(){if(!root)return;lay();const f=$('xf').value,h='<?xml versio
  if(f==='opml')dl(fname()+'.opml',h+'<opml version="2.0"><head><title>'+esc(root.t)+'</title></head><body>'+X1(root)+'</body></opml>','text/x-opml');
  else if(f==='mm')dl(fname()+'.mm',h+'<map version="1.0.1">'+X2(root,false)+'</map>','application/xml');
  else dl(fname()+'.md',X3(root,0),'text/markdown');$('st').textContent='내보냈어요 ('+f+') · 이미지·좌표·색은 포함되지 않아요'}
+async function aiRefine(){const st=$('st');if(!root)return;const key=$('akey').value.trim();
+ if(!key){st.textContent='Anthropic API 키를 먼저 입력해 주세요.';return}
+ try{if($('akeep').checked)localStorage.setItem('mm_akey',key);else localStorage.removeItem('mm_akey')}catch(e){}
+ const br=root.c.filter(b=>b.c.length&&!/^[★📢]/.test(b.t.replace(/^\d{1,2}:\d{2}(?::\d{2})?\s/,'')));if(!br.length){st.textContent='다듬을 큰 가지가 없어요.';return}
+ const TMR=/^\d{1,2}:\d{2}(?::\d{2})?\s/,pay=br.map((b,i)=>({번호:i,현재이름:b.t.replace(TMR,''),내용:b.c.slice(0,6).map(x=>(x.n&&x.n!==x.t?x.n:x.t).replace(/\s+/g,' ').slice(0,110))}));
+ st.textContent='AI가 큰 가지 제목을 다듬는 중… (가지 요약 텍스트가 Anthropic API로 전송돼요)';
+ try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+  body:JSON.stringify({model:$('amodel').value.trim()||'claude-haiku-5-5',max_tokens:1200,system:'너는 마인드맵 편집자다. 사용자가 주는 JSON의 각 가지(현재이름과 내용 문장들)를 읽고, 그 가지를 대표하는 한국어 명사구 제목을 12자 안팎(최대 20자)으로 짓는다. 내용에 없는 사실은 쓰지 않는다. 음성인식 오타는 문맥으로 바로잡는다. 반드시 {"root":"전체 제목","titles":["제목1","제목2"]} 형태의 JSON만 출력하고, titles의 길이는 입력 가지 수와 같아야 한다.',
+   messages:[{role:'user',content:JSON.stringify({전체주제:$('about').value.trim()||root.t,가지:pay})}]})});
+  if(!res.ok){st.textContent='AI 호출 실패 (HTTP '+res.status+(res.status===401?': API 키를 확인하세요':'')+')';return}
+  const j=await res.json(),tx=(j.content||[]).map(c=>c.text||'').join('').replace(/```\w*/g,'').trim(),o=JSON.parse(tx.slice(tx.indexOf('{'),tx.lastIndexOf('}')+1));
+  if(!Array.isArray(o.titles)||o.titles.length!==br.length)throw new Error('응답 형식이 달라요');
+  snap();br.forEach((b,i)=>{const tm=(b.t.match(TMR)||[''])[0],rest=b.t.slice(tm.length),pre=(rest.match(/^(도입|마무리) · /)||[''])[0];b.t=tm+pre+String(o.titles[i]).trim();b.ed=1});
+  if(o.root&&!$('about').value.trim())root.t=String(o.root).trim();lay();st.textContent='AI가 큰 가지 제목 '+br.length+'개를 다듬었어요. (Ctrl+Z로 되돌릴 수 있어요)'}
+ catch(e){st.textContent='AI 다듬기 실패: '+e.message}}
+try{const k=localStorage.getItem('mm_akey');if(k){$('akey').value=k;$('akeep').checked=true}}catch(e){}
 let engine;
 async function aiMD(t,about){if(!navigator.gpu)throw new Error('WebGPU 미지원 브라우저');
- if(!engine){const w=await import('https://esm.run/@mlc-ai/web-llm'),cfg={...w.prebuiltAppConfig,useIndexedDBCache:true};
+ if(!engine){const w=await import('https://esm.run/@mlc-ai/web-llm'),cfg={...w.prebuiltAppConfig,useIndexedDBCache:true};let lastErr=null;
+  if($('msrc').value==='mirror')cfg.model_list=cfg.model_list.map(x=>({...x,model:x.model.replace('https://huggingface.co','https://hf-mirror.com')}));
   for(const m of['Qwen2.5-1.5B-Instruct-q4f16_1-MLC','Qwen2.5-0.5B-Instruct-q4f16_1-MLC']){
-   try{engine=await w.CreateMLCEngine(m,{appConfig:cfg,initProgressCallback:p=>$('st').textContent='모델 준비 중('+m.split('-')[1]+')… '+(p.text||'')});break}catch(e){console.warn(e)}}
-  if(!engine)throw new Error('모델 다운로드 실패: 네트워크·방화벽·광고 차단 확장이 huggingface 다운로드를 막았을 수 있어요')}
+   let ok=false;for(let a=0;a<2&&!ok;a++){try{engine=await w.CreateMLCEngine(m,{appConfig:cfg,initProgressCallback:p=>$('st').textContent='모델 준비 중('+m.split('-')[1]+')… '+(p.text||'')});ok=true}catch(e){lastErr=e;console.warn(e);$('st').textContent='다운로드 재시도 중…'}}if(ok)break}
+  if(!engine)throw new Error('모델 다운로드 실패('+((lastErr&&lastErr.message)||'').slice(0,60)+'): 모델 서버를 바꾸거나 확장 프로그램·네트워크를 확인해 보세요')}
  $('st').textContent='AI가 글을 정리하는 중…';
  const r=await engine.chat.completions.create({temperature:.2,messages:[{role:'system',content:'너는 글을 마인드맵용 마크다운 개요로 정리한다. 첫 줄은 "# 제목", 큰 갈래는 "## ", 그 아래 항목은 "### ", 세부 내용은 "- ". 모든 줄은 한국어 20자 이내의 짧은 구로 쓴다. 설명 없이 마크다운만 출력한다.'},{role:'user',content:(about?'주제: '+about+'\n':'')+t.slice(0,3000)}]});
  return r.choices[0].message.content.replace(/```\w*/g,'').trim()}
